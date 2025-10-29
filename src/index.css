@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-gray-900 text-white;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.15), transparent 45%),
+    radial-gradient(circle at 80% 10%, rgba(59, 130, 246, 0.12), transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(5, 150, 105, 0.18), transparent 50%);
+  z-index: -1;
+}
