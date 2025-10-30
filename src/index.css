@@ -18,6 +18,203 @@ body::before {
   z-index: -1;
 }
 
+.screen-only {
+  display: block;
+}
+
+.print-only {
+  display: none;
+}
+
+.print-report {
+  font-size: 12pt;
+  line-height: 1.45;
+  color: #111827;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  padding: 0;
+}
+
+.print-report__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.print-report__title {
+  font-size: 20pt;
+  font-weight: 600;
+  margin: 0;
+  color: #0f172a;
+}
+
+.print-report__subtitle {
+  font-size: 11pt;
+  margin-top: 0.25rem;
+  color: #475569;
+}
+
+.print-report__timestamp {
+  text-align: right;
+  font-size: 10pt;
+  color: #475569;
+}
+
+.print-report__caption {
+  font-size: 10pt;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: #6366f1;
+  margin-bottom: 0.35rem;
+}
+
+.print-report__caption--uppercase {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.print-report__section {
+  margin-top: 1.8rem;
+}
+
+.print-report__section-title {
+  font-size: 14pt;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #0f172a;
+}
+
+.print-report__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.print-report__highlight {
+  background-color: #f8fafc;
+  border: 1px solid #cbd5f5;
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+}
+
+.print-report__value {
+  margin: 0;
+  font-size: 18pt;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.print-report__measurements {
+  margin-top: 1.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+}
+
+.print-report__measurement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.print-report__measurement {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.print-report__measurement dt {
+  font-size: 10pt;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.print-report__measurement dd {
+  margin: 0;
+  font-size: 12pt;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.print-report__measurement-unit {
+  margin-left: 0.2rem;
+  font-size: 10pt;
+  font-weight: 500;
+  color: #475569;
+}
+
+.print-report__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11pt;
+}
+
+.print-report__table th,
+.print-report__table td {
+  border: 1px solid #d1d5db;
+  padding: 0.6rem 0.7rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.print-report__table thead th {
+  background: #eef2ff;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.print-report__metrics {
+  margin: 0.4rem 0 0;
+  padding-left: 1rem;
+  color: #475569;
+  font-size: 10pt;
+}
+
+.print-report__metrics li {
+  margin-bottom: 0.2rem;
+}
+
+.print-report__strong {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.print-report__total {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  align-items: baseline;
+  margin-top: 1rem;
+  font-size: 12pt;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.print-report__note {
+  font-size: 10pt;
+  color: #0f766e;
+  border-left: 3px solid #14b8a6;
+  padding-left: 0.8rem;
+  margin: 0.75rem 0 0;
+}
+
+.print-report__footnote {
+  margin-top: 2.5rem;
+  font-size: 9.5pt;
+  color: #475569;
+  line-height: 1.4;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 14mm;
+}
+
 @media print {
   body {
     background: #ffffff !important;
@@ -55,5 +252,22 @@ body::before {
     background: #ffffff !important;
     color: #000000 !important;
     border-color: #d1d5db !important;
+  }
+
+  .screen-only {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-area {
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    overflow: visible !important;
+    padding: 0 !important;
   }
 }
