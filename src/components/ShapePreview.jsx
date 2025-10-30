@@ -1,4 +1,4 @@
-import React, { useId, useMemo } from 'react';
+import React, { useEffect, useId, useMemo, useRef } from 'react';
 import { calculateMetrics } from '../utils/figureMetrics';
 
 const VIEWBOX = 240;
@@ -86,6 +86,124 @@ function getShapeElement(figure, data) {
     default:
       return getRectangleShape();
   }
+}
+
+function getBorderElements(figure, data = {}) {
+  const borders = Array.isArray(data.borders) ? data.borders : [];
+  const enabledBorders = borders.filter(
+    (border) => border?.enabled && Number.isFinite(border.width) && border.width > 0
+  );
+
+  if (enabledBorders.length === 0) {
+    return null;
+  }
+
+  const elements = [];
+
+  switch (figure) {
+    case 'rectangle': {
+      const width = clampPositive(data.width);
+      const height = clampPositive(data.height);
+      const scale = 180 / Math.max(width, height);
+      const displayWidth = width * scale;
+      const displayHeight = height * scale;
+      const x = (VIEWBOX - displayWidth) / 2;
+      const y = (VIEWBOX - displayHeight) / 2;
+
+      enabledBorders.slice(0, 4).forEach((border, idx) => {
+        const borderWidth = clampPositive(border.width, 0) * scale;
+
+        if (borderWidth <= 0) {
+          return;
+        }
+
+        const baseRectProps = {
+          key: `border-${idx}`,
+          fill: '#ffffff',
+          stroke: '#0f172a',
+          strokeWidth: 2,
+        };
+
+        switch (idx) {
+          case 0:
+            elements.push(
+              <rect
+                {...baseRectProps}
+                x={x}
+                y={y - borderWidth}
+                width={displayWidth}
+                height={borderWidth}
+              />
+            );
+            break;
+          case 1:
+            elements.push(
+              <rect
+                {...baseRectProps}
+                x={x + displayWidth}
+                y={y}
+                width={borderWidth}
+                height={displayHeight}
+              />
+            );
+            break;
+          case 2:
+            elements.push(
+              <rect
+                {...baseRectProps}
+                x={x}
+                y={y + displayHeight}
+                width={displayWidth}
+                height={borderWidth}
+              />
+            );
+            break;
+          case 3:
+            elements.push(
+              <rect
+                {...baseRectProps}
+                x={x - borderWidth}
+                y={y}
+                width={borderWidth}
+                height={displayHeight}
+              />
+            );
+            break;
+          default:
+            break;
+        }
+      });
+      break;
+    }
+    case 'circle': {
+      const radius = clampPositive(data.radius);
+      const scale = 90 / radius;
+      const displayRadius = radius * scale;
+      const border = enabledBorders[0];
+
+      if (border) {
+        const borderWidth = clampPositive(border.width, 0) * scale;
+        if (borderWidth > 0) {
+          elements.push(
+            <circle
+              key="border-circle"
+              cx={VIEWBOX / 2}
+              cy={VIEWBOX / 2}
+              r={displayRadius + borderWidth / 2}
+              fill="none"
+              stroke="#0f172a"
+              strokeWidth={borderWidth}
+            />
+          );
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  return elements.length > 0 ? elements : null;
 }
 
 const figureDescriptions = {
@@ -232,8 +350,10 @@ export default function ShapePreview({ figure, data }) {
   const idBase = useId().replace(/:/g, '');
   const gradientId = `${idBase}-gradient`;
   const glowId = `${idBase}-glow`;
+  const svgRef = useRef(null);
 
   const shapeElement = useMemo(() => getShapeElement(figure, data), [figure, data]);
+  const borderElements = useMemo(() => getBorderElements(figure, data), [figure, data]);
   const label = figureDescriptions[figure] ?? 'Figura seleccionada';
   const measurements = useMemo(() => getFigureMeasurements(figure, data), [figure, data]);
   const scaleFactor = useMemo(() => getScaleFactor(figure, data), [figure, data]);
@@ -244,14 +364,62 @@ export default function ShapePreview({ figure, data }) {
   const hasMeasurements = measurements.length > 0;
   const hasPerimeterDetails = perimeterDetails.length > 0;
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const svgElement = svgRef.current;
+
+    if (!svgElement) {
+      return undefined;
+    }
+
+    try {
+      const serializer = new XMLSerializer();
+      const svgMarkup = serializer.serializeToString(svgElement);
+      const encoded = window.btoa(unescape(encodeURIComponent(svgMarkup)));
+
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        return undefined;
+      }
+
+      canvas.width = VIEWBOX * 2;
+      canvas.height = VIEWBOX * 2;
+
+      const image = new Image();
+      image.onload = () => {
+        context.fillStyle = '#f8fafc';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const imageData = canvas.toDataURL('image/png');
+        svgElement.setAttribute('data-image', imageData);
+      };
+      image.src = `data:image/svg+xml;base64,${encoded}`;
+
+      return () => {
+        image.onload = null;
+      };
+    } catch (error) {
+      if (svgElement) {
+        svgElement.removeAttribute('data-image');
+      }
+      console.warn('No se pudo generar la imagen exportable de la vista previa.', error);
+      return undefined;
+    }
+  }, [figure, data, shapeElement, borderElements]);
+
   return (
     <div className="rounded-2xl border border-emerald-500/10 bg-black/40 p-5 shadow-[0_20px_60px_rgba(16,185,129,0.15)] backdrop-blur-xl">
       <div className="flex items-center justify-between text-xs uppercase tracking-[0.3em] text-emerald-300/80">
         <span>Vista previa</span>
         <span>{label}</span>
       </div>
-      <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-500/10 bg-gradient-to-br from-emerald-500/10 via-transparent to-emerald-500/5">
-        <svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} className="h-56 w-full">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-gray-200 shadow-inner print:bg-white">
+        <svg ref={svgRef} viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} className="h-56 w-full">
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="rgba(110,231,183,0.9)" />
@@ -262,10 +430,12 @@ export default function ShapePreview({ figure, data }) {
               <feGaussianBlur stdDeviation="8" result="coloredBlur" />
               <feMerge>
                 <feMergeNode in="coloredBlur" />
-                <feMergeNode in="SourceGraphic" />
+              <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
           </defs>
+          <rect x="0" y="0" width={VIEWBOX} height={VIEWBOX} fill="#e5e7eb" />
+          {borderElements}
           <g fill={`url(#${gradientId})`} stroke="rgba(16,185,129,0.5)" strokeWidth="4" filter={`url(#${glowId})`}>
             {shapeElement}
           </g>
@@ -344,6 +514,9 @@ export default function ShapePreview({ figure, data }) {
       )}
       <p className="mt-3 text-xs text-gray-400">
         Las proporciones se escalan para una visualización clara y no representan dimensiones reales.
+        {borderElements && (
+          <span className="ml-1 text-emerald-200/70">Las orillas se ilustran en blanco con borde oscuro.</span>
+        )}
       </p>
     </div>
   );

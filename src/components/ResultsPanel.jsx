@@ -459,9 +459,7 @@ export default function ResultsPanel({ figure, data }) {
                       showCostDrawer ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
                     } print:opacity-100 print:translate-y-0`}
                   >
-                    <p className="text-xs text-gray-400">
-                      Valor por m² para sumar paredes, zócalos y orillas al costo total.
-                    </p>
+                    
                     {visualItems.length > 0 && (
                       <button
                         type="button"
