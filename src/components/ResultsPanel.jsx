@@ -232,6 +232,7 @@ export default function ResultsPanel({ figure, data }) {
   const [lShapeError, setLShapeError] = useState('');
   const [showCostDrawer, setShowCostDrawer] = useState(false);
   const [reportTimestamp, setReportTimestamp] = useState('');
+  const [showVisualPreview, setShowVisualPreview] = useState(false);
   const manualCostDrawerRef = useRef(false);
 
   useEffect(() => {
@@ -255,13 +256,24 @@ export default function ResultsPanel({ figure, data }) {
     setReportTimestamp(dateFormatter.format(new Date()));
   }, [dateFormatter]);
 
+  const closeVisualPreview = useCallback(() => {
+    setShowVisualPreview(false);
+  }, []);
+
+  const toggleVisualPreview = useCallback(() => {
+    setShowVisualPreview((prev) => !prev);
+  }, []);
+
   const handleToggleCostDrawer = useCallback(() => {
     setShowCostDrawer((prev) => {
       const next = !prev;
       manualCostDrawerRef.current = next;
+      if (!next) {
+        closeVisualPreview();
+      }
       return next;
     });
-  }, []);
+  }, [closeVisualPreview]);
 
   const openCostDrawerForPrint = useCallback(() => {
     if (!showCostDrawer) {
@@ -280,6 +292,7 @@ export default function ResultsPanel({ figure, data }) {
 
     const handleBeforePrint = () => {
       updateReportTimestamp();
+      closeVisualPreview();
       openCostDrawerForPrint();
     };
 
@@ -294,7 +307,7 @@ export default function ResultsPanel({ figure, data }) {
       window.removeEventListener('beforeprint', handleBeforePrint);
       window.removeEventListener('afterprint', handleAfterPrint);
     };
-  }, [openCostDrawerForPrint, restoreCostDrawer, updateReportTimestamp]);
+  }, [closeVisualPreview, openCostDrawerForPrint, restoreCostDrawer, updateReportTimestamp]);
 
   const handlePrint = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -302,12 +315,13 @@ export default function ResultsPanel({ figure, data }) {
     }
 
     updateReportTimestamp();
+    closeVisualPreview();
     openCostDrawerForPrint();
 
     setTimeout(() => {
       window.print();
     }, 60);
-  }, [openCostDrawerForPrint, updateReportTimestamp]);
+  }, [closeVisualPreview, openCostDrawerForPrint, updateReportTimestamp]);
 
   const convertArea = (val) => {
     switch (unit) {
@@ -336,6 +350,37 @@ export default function ResultsPanel({ figure, data }) {
   const baseboardCost = baseboardSurface * baseboardCostPerM2;
   const edgeCost = edgeSurface * edgeCostPerM2;
   const total = floorCost + wallCost + baseboardCost + edgeCost;
+  const visualItems = [
+    area > 0 && {
+      key: 'floor',
+      label: 'Superficie principal',
+      areaValue: area,
+      displayValue: `${formatValue(floorAreaConverted)} ${unit}`,
+      color: 'linear-gradient(90deg, rgba(16,185,129,0.9), rgba(59,130,246,0.6))',
+    },
+    wallSurface > 0 && {
+      key: 'walls',
+      label: 'Paredes',
+      areaValue: wallSurface,
+      displayValue: `${formatValue(wallSurface)} m²`,
+      color: 'linear-gradient(90deg, rgba(14,165,233,0.9), rgba(56,189,248,0.65))',
+    },
+    baseboardSurface > 0 && {
+      key: 'baseboards',
+      label: 'Zócalos',
+      areaValue: baseboardSurface,
+      displayValue: `${formatValue(baseboardSurface)} m²`,
+      color: 'linear-gradient(90deg, rgba(249,115,22,0.9), rgba(253,186,116,0.8))',
+    },
+    edgeSurface > 0 && {
+      key: 'edges',
+      label: 'Orillas',
+      areaValue: edgeSurface,
+      displayValue: `${formatValue(edgeSurface)} m²`,
+      color: 'linear-gradient(90deg, rgba(168,85,247,0.9), rgba(217,70,239,0.7))',
+    },
+  ].filter(Boolean);
+  const maxVisualArea = visualItems.length > 0 ? Math.max(...visualItems.map(({ areaValue }) => areaValue)) : 0;
 
   return (
     <>
@@ -417,6 +462,24 @@ export default function ResultsPanel({ figure, data }) {
                     <p className="text-xs text-gray-400">
                       Valor por m² para sumar paredes, zócalos y orillas al costo total.
                     </p>
+                    {visualItems.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={toggleVisualPreview}
+                        aria-pressed={showVisualPreview}
+                        className="print:hidden mt-4 inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200 transition hover:bg-emerald-500/15 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                      >
+                        <span className="text-[11px]">Vista previa superficies</span>
+                        <span
+                          className={`text-base leading-none transition-transform ${
+                            showVisualPreview ? 'rotate-45' : ''
+                          }`}
+                          aria-hidden="true"
+                        >
+                          +
+                        </span>
+                      </button>
+                    )}
                     <div className="mt-4 space-y-4 max-h-[50vh] overflow-y-auto pr-1 print:max-h-none print:overflow-visible">
                       <div className="rounded-xl border border-gray-800/70 bg-gray-900/60 px-4 py-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -539,6 +602,48 @@ export default function ResultsPanel({ figure, data }) {
             <p className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
               {lShapeError}
             </p>
+          )}
+
+          {showVisualPreview && visualItems.length > 0 && (
+            <div className="print:hidden absolute bottom-6 right-6 z-40 w-[min(320px,calc(100vw-4rem))]">
+              <div className="overflow-hidden rounded-2xl border border-emerald-500/30 bg-gray-950/95 px-5 pb-5 pt-4 shadow-[0_30px_90px_rgba(16,185,129,0.35)] backdrop-blur-md">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-100">Vista previa de superficies</p>
+                    <p className="mt-1 text-xs text-emerald-200/80">
+                      Compara visualmente la participación relativa de cada elemento.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeVisualPreview}
+                    className="ml-auto rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-100 transition hover:bg-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                    aria-label="Cerrar vista previa de superficies"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="mt-4 space-y-4">
+                  {visualItems.map(({ key, label, displayValue, areaValue, color }) => {
+                    const percent = maxVisualArea > 0 ? Math.max((areaValue / maxVisualArea) * 100, 6) : 0;
+                    return (
+                      <div key={key} className="space-y-2">
+                        <div className="flex items-center justify-between text-xs text-emerald-100/90">
+                          <span className="font-medium">{label}</span>
+                          <span className="text-emerald-200/80">{displayValue}</span>
+                        </div>
+                        <div className="h-2.5 w-full rounded-full bg-emerald-500/10">
+                          <div
+                            className="h-full rounded-full shadow-[0_0_12px_rgba(16,185,129,0.45)] transition-all duration-500 ease-out"
+                            style={{ width: `${percent}%`, background: color }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

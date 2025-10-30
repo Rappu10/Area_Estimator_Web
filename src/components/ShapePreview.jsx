@@ -348,3 +348,5 @@ export default function ShapePreview({ figure, data }) {
     </div>
   );
 }
+
+export { figureDescriptions, getFigureMeasurements, formatMeasurementValue };
