@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ShapePreview from './ShapePreview';
-
-const L_SHAPE_ERROR =
-  'Dimensiones inválidas: el recorte debe ser mayor que 0 y menor que las medidas exteriores.';
+import { calculateMetrics } from '../utils/figureMetrics';
 
 export default function ResultsPanel({ figure, data }) {
   const [area, setArea] = useState(0);
@@ -10,72 +8,17 @@ export default function ResultsPanel({ figure, data }) {
   const [unit, setUnit] = useState('m2');
   const [pricePerM2, setPricePerM2] = useState(100);
   const [lShapeError, setLShapeError] = useState('');
+  const handlePrint = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.print();
+    }
+  }, []);
 
   useEffect(() => {
-    let a = 0, p = 0;
-    const { width, height, base, radius, outerWidth, outerHeight, cutWidth, cutHeight } = data;
-
-    switch (figure) {
-      case 'rectangle':
-        a = (width || 0) * (height || 0);
-        p = 2 * ((width || 0) + (height || 0));
-        break;
-      case 'triangle':
-        a = ((base || 0) * (height || 0)) / 2;
-        p = 3 * (base || 0); 
-        break;
-      case 'circle':
-        a = Math.PI * Math.pow(radius || 0, 2);
-        p = 2 * Math.PI * (radius || 0);
-        break;
-      case 'lShape': {
-        const validOuter = (outerWidth || 0) > 0 && (outerHeight || 0) > 0;
-        const validCut =
-          (cutWidth || 0) >= 0 &&
-          (cutHeight || 0) >= 0 &&
-          (cutWidth || 0) < (outerWidth || 0) &&
-          (cutHeight || 0) < (outerHeight || 0);
-
-        if (validOuter && validCut) {
-          const safeOuterWidth = outerWidth || 0;
-          const safeOuterHeight = outerHeight || 0;
-          const safeCutWidth = cutWidth || 0;
-          const safeCutHeight = cutHeight || 0;
-
-          a = safeOuterWidth * safeOuterHeight - safeCutWidth * safeCutHeight;
-
-          const segments = [
-            safeOuterWidth,
-            Math.max(safeOuterHeight - safeCutHeight, 0),
-            safeCutWidth,
-            safeCutHeight,
-            Math.max(safeOuterWidth - safeCutWidth, 0),
-            safeOuterHeight,
-          ];
-
-          p = segments.reduce((total, segment) => total + segment, 0);
-          setLShapeError('');
-        } else {
-          setLShapeError(
-            (outerWidth || 0) === 0 && (outerHeight || 0) === 0 && (cutWidth || 0) === 0 && (cutHeight || 0) === 0
-              ? ''
-              : L_SHAPE_ERROR
-          );
-          a = 0;
-          p = 0;
-        }
-        break;
-      }
-      default:
-        break;
-    }
-
-    if (figure !== 'lShape') {
-      setLShapeError('');
-    }
-
-    setArea(a);
-    setPerimeter(p);
+    const { area: computedArea, perimeter: computedPerimeter, error } = calculateMetrics(figure, data);
+    setArea(computedArea);
+    setPerimeter(computedPerimeter);
+    setLShapeError(error);
   }, [data, figure]);
 
   const convertArea = (val) => {
@@ -90,25 +33,33 @@ export default function ResultsPanel({ figure, data }) {
   };
 
   const total = convertArea(area) * pricePerM2;
-
   return (
-    <div className="relative mt-6 w-full overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/60 p-6 shadow-[0_25px_80px_rgba(15,118,110,0.25)] backdrop-blur-xl">
+    <div className="print-area relative mt-6 w-full overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/60 p-6 shadow-[0_25px_80px_rgba(15,118,110,0.25)] backdrop-blur-xl">
       <div className="pointer-events-none absolute inset-x-16 -top-24 h-48 rounded-full bg-emerald-500/20 blur-3xl opacity-40" />
 
       <div className="relative">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-lg font-semibold text-white">Resultados</h2>
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <span>Unidad</span>
-            <select
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              className="rounded-lg border border-gray-800 bg-gray-950/70 px-3 py-1.5 text-xs uppercase tracking-wide text-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
-            >
-              <option value="m2">m²</option>
-              <option value="ha">ha</option>
-              <option value="ft2">ft²</option>
-            </select>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <span>Unidad</span>
+              <select
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                className="print-select rounded-lg border border-gray-800 bg-gray-950/70 px-3 py-1.5 text-xs uppercase tracking-wide text-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
+              >
+                <option value="m2">m²</option>
+                <option value="ha">ha</option>
+                <option value="ft2">ft²</option>
+              </select>
+            </div>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="print-hide rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/20 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+              >
+              Guardar en PDF
+            </button>
           </div>
         </div>
 
@@ -141,7 +92,7 @@ export default function ResultsPanel({ figure, data }) {
                 type="number"
                 value={pricePerM2}
                 onChange={(e) => setPricePerM2(parseFloat(e.target.value) || 0)}
-                className="mt-2 w-full rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-2 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
+                className="print-input mt-2 w-full rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-2 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
               />
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-sm text-gray-400">Costo estimado</span>
