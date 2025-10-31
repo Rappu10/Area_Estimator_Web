@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useId, useMemo, useRef } from 'react';
 import { calculateMetrics } from '../utils/figureMetrics';
 

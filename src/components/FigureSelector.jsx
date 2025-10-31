@@ -157,7 +157,7 @@ export default function FigureSelector({ figure, setFigure, setData }) {
               onClick={() => setShowMeasurements((prev) => !prev)}
               className="flex w-full items-center justify-between rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-5 py-3 text-sm font-semibold text-emerald-200 shadow-[0_12px_35px_rgba(16,185,129,0.18)] transition hover:bg-emerald-500/15 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 print:hidden"
             >
-              <span>Mediciones de paredes, zócalos y orillas</span>
+              <span>Mediciones de Zoclos,Faldones y orillas</span>
               <span className={`transition-transform ${showMeasurements ? 'rotate-180' : ''}`}>▴</span>
             </button>
             <div
@@ -182,7 +182,7 @@ export default function FigureSelector({ figure, setFigure, setData }) {
                   <div className="rounded-xl border border-gray-800/70 bg-gray-900/60 px-4 py-4 print-card">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-emerald-200">Paredes</p>
+                        <p className="text-sm font-semibold text-emerald-200">Zoclos</p>
                         <p className="text-xs text-gray-400">Superficie lineal de muro</p>
                       </div>
                       <label className="text-xs uppercase tracking-wide text-gray-400">
@@ -219,7 +219,7 @@ export default function FigureSelector({ figure, setFigure, setData }) {
                   <div className="rounded-xl border border-gray-800/70 bg-gray-900/60 px-4 py-4 print-card">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-emerald-200">Zócalos</p>
+                        <p className="text-sm font-semibold text-emerald-200">Faldones</p>
                         <p className="text-xs text-gray-400">Largo y superficie del rodapié</p>
                       </div>
                       <label className="text-xs uppercase tracking-wide text-gray-400">

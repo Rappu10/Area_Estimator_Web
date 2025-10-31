@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ShapePreview, {
   figureDescriptions,
@@ -5,6 +7,57 @@ import ShapePreview, {
   formatMeasurementValue as formatMeasurement,
 } from './ShapePreview';
 import { calculateMetrics } from '../utils/figureMetrics';
+import { DEFAULT_MATERIAL_ID, MATERIAL_CATALOG } from '../data/materialCatalog';
+
+const VIATIC_OPTIONS = [
+  {
+    group: 'Hacia Torreón',
+    options: [
+      { value: 'madero', label: 'Madero', amount: 2000 },
+      { value: 'victoria', label: 'Victoria', amount: 2500 },
+      { value: 'cuencame', label: 'Cuencamé', amount: 5000 },
+      { value: 'torreon', label: 'Torreón', amount: 7500 },
+    ],
+  },
+  {
+    group: 'Hacia Mazatlán',
+    options: [
+      { value: 'otinapa', label: 'Otinapa', amount: 2000 },
+      { value: 'el-salto', label: 'El Salto', amount: 3500 },
+      { value: 'mazatlan', label: 'Mazatlán', amount: 9000 },
+    ],
+  },
+  {
+    group: 'Hacia México',
+    options: [
+      { value: 'nombre-de-dios', label: 'Nombre de Dios', amount: 2000 },
+      { value: 'vicente-guerrero', label: 'Vicente Guerrero', amount: 3000 },
+      { value: 'sombrerete', label: 'Sombrerete', amount: 4000 },
+      { value: 'fresnillo', label: 'Fresnillo', amount: 6000 },
+      { value: 'zacatecas', label: 'Zacatecas', amount: 9000 },
+    ],
+  },
+  {
+    group: 'Hacia Mezquital',
+    options: [
+      { value: 'praxedis', label: 'Práxedis', amount: 2000 },
+      { value: 'pino-suarez', label: 'Pino Suárez', amount: 2500 },
+      { value: 'mezquital', label: 'Mezquital', amount: 4000 },
+    ],
+  },
+  {
+    group: 'Hacia Tepehuanes',
+    options: [{ value: 'canatlan', label: 'Canatlán', amount: 2000 }],
+  },
+];
+
+const flattenMaterials = (catalog) =>
+  catalog.flatMap(({ category, items }) =>
+    items.map((item) => ({
+      ...item,
+      category,
+    }))
+  );
 
 function PrintableReport({
   figureLabel,
@@ -13,7 +66,8 @@ function PrintableReport({
   unit,
   perimeter,
   floorAreaConverted,
-  pricePerM2,
+  materialUnitPrice,
+  materialName,
   wallSurface,
   wallCostPerM2,
   wallHeight,
@@ -27,6 +81,9 @@ function PrintableReport({
   wallCost,
   baseboardCost,
   edgeCost,
+  viaticCost,
+  viaticLabel,
+  specialCost,
   total,
   formatValue,
   formatMeasurement,
@@ -37,7 +94,11 @@ function PrintableReport({
     if (!Number.isFinite(value)) {
       return '$0.00';
     }
-    return `$${formatValue(value)}`;
+    return value.toLocaleString('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 2,
+    });
   };
 
   const relevantMeasurements = Array.isArray(measurements) ? measurements : [];
@@ -45,12 +106,12 @@ function PrintableReport({
   const costRows = [
     {
       key: 'floor',
-      label: 'Superficie principal',
-      surfaceValue: floorAreaConverted,
-      surfaceUnit: unit,
-      unitCost: pricePerM2,
+      label: materialName ? `Superficie principal · ${materialName}` : 'Superficie principal',
+      surfaceValue: baseArea,
+      surfaceUnit: 'm²',
+      unitCost: materialUnitPrice,
       subtotal: floorCost,
-      metrics: [],
+      metrics: unit !== 'm2' ? [{ label: `Área (${unit})`, value: floorAreaConverted, unit }] : [],
     },
     {
       key: 'walls',
@@ -66,7 +127,7 @@ function PrintableReport({
     },
     {
       key: 'baseboards',
-      label: 'Zócalos',
+      label: 'Faldones',
       surfaceValue: baseboardSurface,
       surfaceUnit: 'm²',
       unitCost: baseboardCostPerM2,
@@ -87,6 +148,26 @@ function PrintableReport({
         { label: 'Ancho', value: edgeWidth, unit: 'm' },
         { label: 'Perímetro', value: perimeter, unit: 'm' },
       ],
+    },
+    {
+      key: 'special',
+      label: 'Costos especiales',
+      surfaceValue: null,
+      surfaceUnit: '',
+      unitCost: null,
+      subtotal: specialCost,
+      metrics: [],
+      hideUnitCost: true,
+    },
+    {
+      key: 'viatic',
+      label: viaticCost > 0 ? `Viáticos · ${viaticLabel}` : 'Viáticos',
+      surfaceValue: null,
+      surfaceUnit: '',
+      unitCost: null,
+      subtotal: viaticCost,
+      metrics: [],
+      hideUnitCost: true,
     },
   ].filter((row, index) => {
     if (index === 0) {
@@ -131,6 +212,12 @@ function PrintableReport({
           </div>
         </div>
 
+        {materialName && (
+          <p className="print-report__caption mt-4">
+            Material seleccionado: <span className="print-report__strong">{materialName}</span>
+          </p>
+        )}
+
         {relevantMeasurements.length > 0 && (
           <div className="print-report__measurements">
             <h3 className="print-report__caption print-report__caption--uppercase">Dimensiones ingresadas</h3>
@@ -156,16 +243,17 @@ function PrintableReport({
             <tr>
               <th scope="col">Concepto</th>
               <th scope="col">Superficie considerada</th>
-              <th scope="col">Costo por m²</th>
+              <th scope="col">Costo de Material m²</th>
               <th scope="col">Subtotal</th>
             </tr>
           </thead>
           <tbody>
-            {costRows.map(({ key, label, surfaceValue, surfaceUnit, unitCost, subtotal, metrics }) => {
+            {costRows.map(({ key, label, surfaceValue, surfaceUnit, unitCost, subtotal, metrics, hideUnitCost }) => {
               const hasSurface = Number.isFinite(surfaceValue) && surfaceValue > 0;
               const visibleMetrics = (metrics || []).filter(
                 ({ value }) => Number.isFinite(value) && value > 0
               );
+              const unitCostContent = hideUnitCost ? '—' : formatCurrency(unitCost);
 
               return (
                 <tr key={key}>
@@ -193,7 +281,7 @@ function PrintableReport({
                       '—'
                     )}
                   </td>
-                  <td>{formatCurrency(unitCost)}</td>
+                  <td>{unitCostContent}</td>
                   <td>{formatCurrency(subtotal)}</td>
                 </tr>
               );
@@ -221,19 +309,31 @@ function PrintableReport({
   );
 }
 
-export default function ResultsPanel({ figure, data }) {
+export default function ResultsPanel({
+  figure,
+  data,
+  instanceLabel,
+  workspaceId,
+  onCostDrawerStateChange,
+  externalCloseSignal,
+}) {
   const [area, setArea] = useState(0);
   const [perimeter, setPerimeter] = useState(0);
   const [unit, setUnit] = useState('m2');
-  const [pricePerM2, setPricePerM2] = useState(100);
+  const [customPricePerM2, setCustomPricePerM2] = useState(100);
   const [wallCostPerM2, setWallCostPerM2] = useState(0);
   const [baseboardCostPerM2, setBaseboardCostPerM2] = useState(0);
   const [edgeCostPerM2, setEdgeCostPerM2] = useState(0);
+  const [selectedMaterialId, setSelectedMaterialId] = useState(DEFAULT_MATERIAL_ID);
+  const [specialCost, setSpecialCost] = useState(0);
+  const [selectedViatic, setSelectedViatic] = useState('none');
   const [lShapeError, setLShapeError] = useState('');
   const [showCostDrawer, setShowCostDrawer] = useState(false);
   const [reportTimestamp, setReportTimestamp] = useState('');
   const [showVisualPreview, setShowVisualPreview] = useState(false);
   const manualCostDrawerRef = useRef(false);
+  const modalScrollRef = useRef(null);
+  const externalCloseSignalRef = useRef(externalCloseSignal?.token ?? 0);
 
   useEffect(() => {
     const { area: computedArea, perimeter: computedPerimeter, error } = calculateMetrics(figure, data);
@@ -243,7 +343,10 @@ export default function ResultsPanel({ figure, data }) {
   }, [data, figure]);
 
   const measurements = useMemo(() => getFigureMeasurements(figure, data), [figure, data]);
-  const figureLabel = useMemo(() => figureDescriptions[figure] ?? 'Figura seleccionada', [figure]);
+  const figureLabel = useMemo(() => {
+    const baseLabel = figureDescriptions[figure] ?? 'Figura seleccionada';
+    return instanceLabel ? `${baseLabel} · ${instanceLabel}` : baseLabel;
+  }, [figure, instanceLabel]);
   const dateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat('es-ES', {
@@ -259,6 +362,15 @@ export default function ResultsPanel({ figure, data }) {
   const closeVisualPreview = useCallback(() => {
     setShowVisualPreview(false);
   }, []);
+
+  const closeCostDrawer = useCallback(() => {
+    manualCostDrawerRef.current = false;
+    setShowCostDrawer(false);
+    closeVisualPreview();
+    if (workspaceId && typeof onCostDrawerStateChange === 'function') {
+      onCostDrawerStateChange(workspaceId, false);
+    }
+  }, [closeVisualPreview, onCostDrawerStateChange, workspaceId]);
 
   const toggleVisualPreview = useCallback(() => {
     setShowVisualPreview((prev) => !prev);
@@ -277,6 +389,7 @@ export default function ResultsPanel({ figure, data }) {
 
   const openCostDrawerForPrint = useCallback(() => {
     if (!showCostDrawer) {
+      manualCostDrawerRef.current = true;
       setShowCostDrawer(true);
     }
   }, [showCostDrawer]);
@@ -323,6 +436,62 @@ export default function ResultsPanel({ figure, data }) {
     }, 60);
   }, [closeVisualPreview, openCostDrawerForPrint, updateReportTimestamp]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined' || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    if (!showCostDrawer) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeCostDrawer();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showCostDrawer, closeCostDrawer]);
+
+  useEffect(() => {
+    if (showCostDrawer) {
+      modalScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+    }
+    if (workspaceId && typeof onCostDrawerStateChange === 'function') {
+      onCostDrawerStateChange(workspaceId, showCostDrawer);
+    }
+  }, [showCostDrawer, workspaceId, onCostDrawerStateChange]);
+
+  useEffect(() => {
+    const signalToken = externalCloseSignal?.token ?? 0;
+    const signalId = externalCloseSignal?.id;
+
+    if (!workspaceId) {
+      externalCloseSignalRef.current = signalToken;
+      return undefined;
+    }
+
+    if (signalToken === externalCloseSignalRef.current) {
+      return undefined;
+    }
+
+    externalCloseSignalRef.current = signalToken;
+
+    if (signalId === workspaceId && showCostDrawer) {
+      closeCostDrawer();
+    }
+    return undefined;
+  }, [externalCloseSignal, showCostDrawer, closeCostDrawer, workspaceId]);
+
   const convertArea = (val) => {
     switch (unit) {
       case 'ha':
@@ -335,6 +504,10 @@ export default function ResultsPanel({ figure, data }) {
   };
 
   const formatValue = (val, decimals = 2) => (Number.isFinite(val) ? val.toFixed(decimals) : '0.00');
+  const formatCurrencyValue = (val) =>
+    Number.isFinite(val)
+      ? val.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
+      : '$0.00';
 
   const wallHeight = Number.isFinite(data?.wallHeight) ? data.wallHeight : 0;
   const baseboardHeight = Number.isFinite(data?.baseboardHeight) ? data.baseboardHeight : 0;
@@ -344,30 +517,64 @@ export default function ResultsPanel({ figure, data }) {
   const baseboardSurface = perimeter * baseboardHeight;
   const edgeSurface = perimeter * edgeWidth;
 
+  const materialCatalog = useMemo(() => MATERIAL_CATALOG, []);
+  const materialOptions = useMemo(() => flattenMaterials(materialCatalog), [materialCatalog]);
+
+  const selectedMaterial = useMemo(() => {
+    if (selectedMaterialId === DEFAULT_MATERIAL_ID) {
+      return null;
+    }
+    return materialOptions.find((item) => item.id === selectedMaterialId) ?? null;
+  }, [selectedMaterialId, materialOptions]);
+
+  const materialUnitPrice = selectedMaterial ? selectedMaterial.price : customPricePerM2;
+  const materialDisplayName = selectedMaterial ? selectedMaterial.name : 'Personalizado';
+  const materialCategory = selectedMaterial?.category ?? null;
+  const materialName = selectedMaterial
+    ? `${selectedMaterial.name} (${selectedMaterial.category})`
+    : 'Precio personalizado';
+
+  const viaticSelection = useMemo(() => {
+    if (!selectedViatic || selectedViatic === 'none') {
+      return null;
+    }
+    for (const { group, options } of VIATIC_OPTIONS) {
+      const match = options.find((option) => option.value === selectedViatic);
+      if (match) {
+        return { ...match, group };
+      }
+    }
+    return null;
+  }, [selectedViatic]);
+
   const floorAreaConverted = convertArea(area);
-  const floorCost = floorAreaConverted * pricePerM2;
+  const floorCost = area * materialUnitPrice;
   const wallCost = wallSurface * wallCostPerM2;
   const baseboardCost = baseboardSurface * baseboardCostPerM2;
   const edgeCost = edgeSurface * edgeCostPerM2;
-  const total = floorCost + wallCost + baseboardCost + edgeCost;
+  const viaticCost = viaticSelection?.amount ?? 0;
+  const viaticLabel = viaticSelection ? `${viaticSelection.label} (${viaticSelection.group})` : 'Sin viáticos';
+  const total = floorCost + wallCost + baseboardCost + edgeCost + specialCost + viaticCost;
   const visualItems = [
     area > 0 && {
       key: 'floor',
       label: 'Superficie principal',
       areaValue: area,
-      displayValue: `${formatValue(floorAreaConverted)} ${unit}`,
+      displayValue: `${formatValue(floorAreaConverted)} ${unit}${
+        selectedMaterial ? ` · ${materialDisplayName}` : ''
+      }`,
       color: 'linear-gradient(90deg, rgba(16,185,129,0.9), rgba(59,130,246,0.6))',
     },
     wallSurface > 0 && {
       key: 'walls',
-      label: 'Paredes',
+      label: 'Zoclos',
       areaValue: wallSurface,
       displayValue: `${formatValue(wallSurface)} m²`,
       color: 'linear-gradient(90deg, rgba(14,165,233,0.9), rgba(56,189,248,0.65))',
     },
     baseboardSurface > 0 && {
       key: 'baseboards',
-      label: 'Zócalos',
+      label: 'Faldones',
       areaValue: baseboardSurface,
       displayValue: `${formatValue(baseboardSurface)} m²`,
       color: 'linear-gradient(90deg, rgba(249,115,22,0.9), rgba(253,186,116,0.8))',
@@ -389,7 +596,9 @@ export default function ResultsPanel({ figure, data }) {
 
         <div className="relative">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-white">Resultados</h2>
+            <h2 className="text-lg font-semibold text-white">
+              Resultados{instanceLabel ? ` · ${instanceLabel}` : ''}
+            </h2>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <span>Unidad</span>
@@ -444,155 +653,243 @@ export default function ResultsPanel({ figure, data }) {
                   <div className="flex flex-col text-left">
                     <span>Costos estimados</span>
                     <span className="text-xs font-medium text-emerald-200/80 sm:text-[13px]">
-                      Total ${formatValue(total)}
+                      Total {formatCurrencyValue(total)}
                     </span>
                   </div>
-                  <span className={`ml-4 transition-transform ${showCostDrawer ? 'rotate-180' : ''}`}>▴</span>
+                  <span className={`ml-4 transition-transform ${showCostDrawer ? 'rotate-180' : ''}`}>▾</span>
                 </button>
-                <div
-                  className={`print:mt-4 print:max-h-none print:opacity-100 print:pointer-events-auto mt-0 overflow-hidden transition-[max-height] duration-500 ${
-                    showCostDrawer ? 'mt-4 max-h-[60vh] pointer-events-auto' : 'max-h-0 pointer-events-none'
-                  }`}
-                >
+              </div>
+
+              {showCostDrawer && (
+                <div className="print:hidden fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
                   <div
-                    className={`print-card rounded-2xl border border-gray-800 bg-gray-950/60 px-5 pb-6 pt-5 shadow-inner transition-all duration-300 ${
-                      showCostDrawer ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
-                    } print:opacity-100 print:translate-y-0`}
-                  >
-                    
-                    {visualItems.length > 0 && (
+                    className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+                    onClick={closeCostDrawer}
+                    aria-hidden="true"
+                  />
+                  <div className="relative z-10 w-full max-w-3xl overflow-hidden rounded-3xl border border-emerald-500/30 bg-gray-950/95 shadow-[0_35px_120px_rgba(16,185,129,0.35)]">
+                    <button
+                      type="button"
+                      onClick={closeCostDrawer}
+                      className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/10 text-base font-semibold text-emerald-200 transition hover:bg-emerald-500/20 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                      aria-label="Cerrar costos"
+                    >
+                      ×
+                    </button>
+                    <div className="flex items-start justify-between gap-4 border-b border-emerald-500/20 px-6 py-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">Costos estimados</h3>
+                        <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/70">
+                          {instanceLabel ?? 'Figura actual'}
+                        </p>
+                      </div>
                       <button
                         type="button"
-                        onClick={toggleVisualPreview}
-                        aria-pressed={showVisualPreview}
-                        className="print:hidden mt-4 inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200 transition hover:bg-emerald-500/15 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                        onClick={closeCostDrawer}
+                        className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                        aria-label="Cerrar costos"
                       >
-                        <span className="text-[11px]">Vista previa superficies</span>
-                        <span
-                          className={`text-base leading-none transition-transform ${
-                            showVisualPreview ? 'rotate-45' : ''
-                          }`}
-                          aria-hidden="true"
-                        >
-                          +
-                        </span>
+                        <span className="text-base leading-none">×</span>
+                        <span>Cerrar</span>
                       </button>
-                    )}
-                    <div className="mt-4 space-y-4 max-h-[50vh] overflow-y-auto pr-1 print:max-h-none print:overflow-visible">
-                      <div className="rounded-xl border border-gray-800/70 bg-gray-900/60 px-4 py-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
+                    </div>
+
+                    <div
+                      ref={modalScrollRef}
+                      className="max-h-[70vh] overflow-y-auto px-6 py-5 space-y-5"
+                    >
+                      {visualItems.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={toggleVisualPreview}
+                          aria-pressed={showVisualPreview}
+                          className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200 transition hover:bg-emerald-500/15 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                        >
+                          <span className="text-[11px]">Vista previa superficies</span>
+                          <span
+                            className={`text-base leading-none transition-transform ${
+                              showVisualPreview ? 'rotate-45' : ''
+                            }`}
+                            aria-hidden="true"
+                          >
+                            +
+                          </span>
+                        </button>
+                      )}
+
+                      <div className="rounded-xl border border-gray-800/70 bg-gray-900/60 p-5">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="text-sm font-semibold text-emerald-200">Superficie principal</p>
-                            <p className="text-xs text-gray-400">
+                            <p className="mt-1 text-xs text-gray-400">
                               Área: {formatValue(floorAreaConverted)} {unit}
                             </p>
+                            <p className="mt-2 text-xs text-emerald-300/80">
+                              Material: {materialDisplayName}
+                              {materialCategory && (
+                                <span className="block text-[11px] text-emerald-200/60">{materialCategory}</span>
+                              )}
+                            </p>
                           </div>
-                          <label className="text-xs uppercase tracking-wide text-gray-400">
-                            Costo m²
-                            <input
-                              type="number"
-                              min="0"
-                              step="any"
-                              value={pricePerM2}
-                              onChange={(e) => setPricePerM2(parseFloat(e.target.value) || 0)}
-                              className="print-input mt-1 w-28 rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-1.5 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
-                            />
-                          </label>
+                          <div className="flex w-full flex-col gap-3 text-xs uppercase tracking-wide text-gray-400 sm:max-w-sm">
+                            <label className="flex flex-col text-right">
+                              Material
+                              <select
+                                value={selectedMaterialId}
+                                onChange={(e) => setSelectedMaterialId(e.target.value)}
+                                className="print-select mt-1 w-full rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-2 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
+                              >
+                                <option value={DEFAULT_MATERIAL_ID}>Personalizado</option>
+                                {materialCatalog.map(({ category, items }) => (
+                                  <optgroup key={category} label={category}>
+                                    {items.map(({ id, name, price }) => {
+                                      const formatted = price.toLocaleString('es-MX', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      });
+                                      return (
+                                        <option key={id} value={id}>
+                                          {`${name} — $${formatted}`}
+                                        </option>
+                                      );
+                                    })}
+                                  </optgroup>
+                                ))}
+                              </select>
+                            </label>
+                            {selectedMaterialId === DEFAULT_MATERIAL_ID ? (
+                              <label className="flex flex-col text-right">
+                                Precio por m²
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="any"
+                                  value={customPricePerM2}
+                                  onChange={(e) => setCustomPricePerM2(parseFloat(e.target.value) || 0)}
+                                  className="print-input mt-1 w-full rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-1.5 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
+                                />
+                              </label>
+                            ) : (
+                              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-right text-xs text-emerald-200/80">
+                                Precio por m²
+                                <p className="mt-1 text-sm font-semibold text-emerald-300">
+                                  {formatCurrencyValue(materialUnitPrice)}
+                                </p>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <p className="mt-3 text-sm text-gray-300">
+                        <p className="mt-4 text-sm text-gray-300">
                           Subtotal:{' '}
-                          <span className="font-semibold text-emerald-300">${formatValue(floorCost)}</span>
+                          <span className="font-semibold text-emerald-300">
+                            {formatCurrencyValue(floorCost)}
+                          </span>
                         </p>
                       </div>
 
-                      <div className="rounded-xl border border-gray-800/70 bg-gray-900/60 px-4 py-4">
+                      <div className="rounded-xl border border-gray-800/70 bg-gray-900/60 p-5">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div>
-                            <p className="text-sm font-semibold text-emerald-200">Paredes</p>
+                            <p className="text-sm font-semibold text-emerald-200">Costos especiales</p>
                             <p className="text-xs text-gray-400">
-                              Área: {formatValue(wallSurface)} m² · Altura {formatValue(wallHeight)} m
+                              Importe adicional fijo para materiales o servicios extra.
                             </p>
                           </div>
                           <label className="text-xs uppercase tracking-wide text-gray-400">
-                            Costo m²
+                            Monto $
                             <input
                               type="number"
                               min="0"
                               step="any"
-                              value={wallCostPerM2}
-                              onChange={(e) => setWallCostPerM2(parseFloat(e.target.value) || 0)}
-                              className="print-input mt-1 w-28 rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-1.5 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
+                              value={specialCost}
+                              onChange={(e) => setSpecialCost(parseFloat(e.target.value) || 0)}
+                              className="print-input mt-1 w-full rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-1.5 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition sm:w-32"
                             />
                           </label>
                         </div>
-                        <p className="mt-3 text-sm text-gray-300">
+                        <p className="mt-4 text-sm text-gray-300">
                           Subtotal:{' '}
-                          <span className="font-semibold text-emerald-300">${formatValue(wallCost)}</span>
+                          <span className="font-semibold text-emerald-300">
+                            {formatCurrencyValue(specialCost)}
+                          </span>
                         </p>
                       </div>
 
-                      <div className="rounded-xl border border-gray-800/70 bg-gray-900/60 px-4 py-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="rounded-xl border border-gray-800/70 bg-gray-900/60 p-5">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                            <p className="text-sm font-semibold text-emerald-200">Zócalos</p>
-                            <p className="text-xs text-gray-400">
-                              Área: {formatValue(baseboardSurface)} m² · Longitud {formatValue(perimeter)} m
+                            <p className="text-sm font-semibold text-emerald-200">Viáticos</p>
+                            <p className="text-xs text-gray-400 max-w-xs">
+                              Selecciona el destino del equipo de instalación para sumar los viáticos estimados.
                             </p>
                           </div>
                           <label className="text-xs uppercase tracking-wide text-gray-400">
-                            Costo m²
-                            <input
-                              type="number"
-                              min="0"
-                              step="any"
-                              value={baseboardCostPerM2}
-                              onChange={(e) => setBaseboardCostPerM2(parseFloat(e.target.value) || 0)}
-                              className="print-input mt-1 w-28 rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-1.5 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
-                            />
+                            Destino
+                            <select
+                              value={selectedViatic}
+                              onChange={(e) => setSelectedViatic(e.target.value)}
+                              className="print-select mt-1 w-full rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-2 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition sm:w-52"
+                            >
+                              <option value="none">Sin viáticos</option>
+                              {VIATIC_OPTIONS.map(({ group, options }) => (
+                                <optgroup key={group} label={group}>
+                                  {options.map(({ value, label: optionLabel, amount }) => {
+                                    const formattedAmount = amount.toLocaleString('es-MX', {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    });
+                                    return (
+                                      <option key={value} value={value}>
+                                        {`${optionLabel} — $${formattedAmount}`}
+                                      </option>
+                                    );
+                                  })}
+                                </optgroup>
+                              ))}
+                            </select>
                           </label>
                         </div>
-                        <p className="mt-3 text-sm text-gray-300">
+                        <p className="mt-4 text-sm text-gray-300">
                           Subtotal:{' '}
-                          <span className="font-semibold text-emerald-300">${formatValue(baseboardCost)}</span>
+                          <span className="font-semibold text-emerald-300">
+                            {formatCurrencyValue(viaticCost)}
+                          </span>
                         </p>
-                      </div>
-
-                      <div className="rounded-xl border border-gray-800/70 bg-gray-900/60 px-4 py-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-emerald-200">Orillas</p>
-                            <p className="text-xs text-gray-400">
-                              Área: {formatValue(edgeSurface)} m² · Longitud {formatValue(perimeter)} m
-                            </p>
-                          </div>
-                          <label className="text-xs uppercase tracking-wide text-gray-400">
-                            Costo m²
-                            <input
-                              type="number"
-                              min="0"
-                              step="any"
-                              value={edgeCostPerM2}
-                              onChange={(e) => setEdgeCostPerM2(parseFloat(e.target.value) || 0)}
-                              className="print-input mt-1 w-28 rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-1.5 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
-                            />
-                          </label>
-                        </div>
-                        <p className="mt-3 text-sm text-gray-300">
-                          Subtotal:{' '}
-                          <span className="font-semibold text-emerald-300">${formatValue(edgeCost)}</span>
-                        </p>
+                        {viaticSelection && (
+                          <p className="mt-2 text-xs text-emerald-200/70">
+                            Seleccionado: {viaticSelection.label} · {viaticSelection.group}
+                          </p>
+                        )}
                       </div>
                     </div>
 
-                    <div className="mt-6 flex items-center justify-between border-t border-gray-800 pt-4">
-                      <span className="text-sm text-gray-400">Total estimado</span>
-                      <p className="text-[22px] font-semibold text-emerald-400">
-                        ${formatValue(total)}
-                      </p>
+                    <div className="flex flex-col gap-3 border-t border-emerald-500/20 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-sm text-gray-400">Total estimado</span>
+                        <span className="text-xl font-semibold text-emerald-400">
+                          {formatCurrencyValue(total)}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handlePrint}
+                          className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                        >
+                          <span>Exportar PDF</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={closeCostDrawer}
+                          className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-transparent px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/15 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                        >
+                          <span>Cerrar</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -652,7 +949,8 @@ export default function ResultsPanel({ figure, data }) {
         unit={unit}
         perimeter={perimeter}
         floorAreaConverted={floorAreaConverted}
-        pricePerM2={pricePerM2}
+        materialUnitPrice={materialUnitPrice}
+        materialName={materialName}
         wallSurface={wallSurface}
         wallCostPerM2={wallCostPerM2}
         wallHeight={wallHeight}
@@ -666,6 +964,9 @@ export default function ResultsPanel({ figure, data }) {
         wallCost={wallCost}
         baseboardCost={baseboardCost}
         edgeCost={edgeCost}
+        viaticCost={viaticCost}
+        viaticLabel={viaticLabel}
+        specialCost={specialCost}
         total={total}
         formatValue={formatValue}
         formatMeasurement={formatMeasurement}
