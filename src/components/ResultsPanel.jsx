@@ -77,6 +77,9 @@ function PrintableReport({
   edgeSurface,
   edgeCostPerM2,
   edgeWidth,
+  wallMetrics: wallMetricsOverride,
+  baseboardMetrics: baseboardMetricsOverride,
+  edgeMetrics: edgeMetricsOverride,
   floorCost,
   wallCost,
   baseboardCost,
@@ -103,6 +106,28 @@ function PrintableReport({
 
   const relevantMeasurements = Array.isArray(measurements) ? measurements : [];
 
+  const wallMetrics =
+    Array.isArray(wallMetricsOverride) && wallMetricsOverride.length > 0
+      ? wallMetricsOverride
+      : [
+          { label: 'Altura', value: wallHeight, unit: 'm' },
+          { label: 'Perímetro', value: perimeter, unit: 'm' },
+        ];
+  const baseboardMetrics =
+    Array.isArray(baseboardMetricsOverride) && baseboardMetricsOverride.length > 0
+      ? baseboardMetricsOverride
+      : [
+          { label: 'Altura', value: baseboardHeight, unit: 'm' },
+          { label: 'Perímetro', value: perimeter, unit: 'm' },
+        ];
+  const edgeMetrics =
+    Array.isArray(edgeMetricsOverride) && edgeMetricsOverride.length > 0
+      ? edgeMetricsOverride
+      : [
+          { label: 'Ancho', value: edgeWidth, unit: 'm' },
+          { label: 'Perímetro', value: perimeter, unit: 'm' },
+        ];
+
   const costRows = [
     {
       key: 'floor',
@@ -120,10 +145,7 @@ function PrintableReport({
       surfaceUnit: 'm²',
       unitCost: wallCostPerM2,
       subtotal: wallCost,
-      metrics: [
-        { label: 'Altura', value: wallHeight, unit: 'm' },
-        { label: 'Perímetro', value: perimeter, unit: 'm' },
-      ],
+      metrics: wallMetrics,
     },
     {
       key: 'baseboards',
@@ -132,10 +154,7 @@ function PrintableReport({
       surfaceUnit: 'm²',
       unitCost: baseboardCostPerM2,
       subtotal: baseboardCost,
-      metrics: [
-        { label: 'Altura', value: baseboardHeight, unit: 'm' },
-        { label: 'Perímetro', value: perimeter, unit: 'm' },
-      ],
+      metrics: baseboardMetrics,
     },
     {
       key: 'edges',
@@ -144,10 +163,7 @@ function PrintableReport({
       surfaceUnit: 'm²',
       unitCost: edgeCostPerM2,
       subtotal: edgeCost,
-      metrics: [
-        { label: 'Ancho', value: edgeWidth, unit: 'm' },
-        { label: 'Perímetro', value: perimeter, unit: 'm' },
-      ],
+      metrics: edgeMetrics,
     },
     {
       key: 'special',
@@ -509,13 +525,112 @@ export default function ResultsPanel({
       ? val.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
       : '$0.00';
 
-  const wallHeight = Number.isFinite(data?.wallHeight) ? data.wallHeight : 0;
-  const baseboardHeight = Number.isFinite(data?.baseboardHeight) ? data.baseboardHeight : 0;
-  const edgeWidth = Number.isFinite(data?.edgeWidth) ? data.edgeWidth : 0;
+  const wallHeightSetting = Number.isFinite(data?.wallHeight) ? data.wallHeight : 0;
+  const baseboardHeightSetting = Number.isFinite(data?.baseboardHeight) ? data.baseboardHeight : 0;
+  const edgeWidthSetting = Number.isFinite(data?.edgeWidth) ? data.edgeWidth : 0;
 
-  const wallSurface = perimeter * wallHeight;
-  const baseboardSurface = perimeter * baseboardHeight;
-  const edgeSurface = perimeter * edgeWidth;
+  const borderSummary = useMemo(() => {
+    const allBorders = Array.isArray(data?.borders) ? data.borders : [];
+    const areaByType = { zoclo: 0, faldon: 0, orilla: 0 };
+    const lengthByType = { zoclo: 0, faldon: 0, orilla: 0 };
+    const widthTotals = {
+      zoclo: { total: 0, count: 0 },
+      faldon: { total: 0, count: 0 },
+      orilla: { total: 0, count: 0 },
+    };
+
+    allBorders.forEach((border) => {
+      if (!border?.enabled) {
+        return;
+      }
+
+      const normalizedType =
+        border.type === 'zoclo' || border.type === 'faldon' ? border.type : 'orilla';
+      const length = Number.isFinite(border?.length) ? border.length : 0;
+      const width = Number.isFinite(border?.width) ? border.width : 0;
+
+      lengthByType[normalizedType] += length;
+      if (length > 0 && width > 0) {
+        areaByType[normalizedType] += length * width;
+      }
+      if (width > 0) {
+        widthTotals[normalizedType].total += width;
+        widthTotals[normalizedType].count += 1;
+      }
+    });
+
+    const averageWidthByType = {
+      zoclo:
+        widthTotals.zoclo.count > 0 ? widthTotals.zoclo.total / widthTotals.zoclo.count : 0,
+      faldon:
+        widthTotals.faldon.count > 0 ? widthTotals.faldon.total / widthTotals.faldon.count : 0,
+      orilla:
+        widthTotals.orilla.count > 0 ? widthTotals.orilla.total / widthTotals.orilla.count : 0,
+    };
+
+    return {
+      areaByType,
+      lengthByType,
+      averageWidthByType,
+    };
+  }, [data?.borders]);
+
+  const wallSurfaceFromBorders = borderSummary.areaByType.zoclo;
+  const baseboardSurfaceFromBorders = borderSummary.areaByType.faldon;
+  const edgeSurfaceFromBorders = borderSummary.areaByType.orilla;
+
+  const wallLengthFromBorders = borderSummary.lengthByType.zoclo;
+  const baseboardLengthFromBorders = borderSummary.lengthByType.faldon;
+  const edgeLengthFromBorders = borderSummary.lengthByType.orilla;
+
+  const wallHeight = wallSurfaceFromBorders > 0
+    ? borderSummary.averageWidthByType.zoclo
+    : wallHeightSetting;
+  const baseboardHeight = baseboardSurfaceFromBorders > 0
+    ? borderSummary.averageWidthByType.faldon
+    : baseboardHeightSetting;
+  const edgeWidth = edgeSurfaceFromBorders > 0
+    ? borderSummary.averageWidthByType.orilla
+    : edgeWidthSetting;
+
+  const wallSurface =
+    wallSurfaceFromBorders > 0 ? wallSurfaceFromBorders : perimeter * wallHeightSetting;
+  const baseboardSurface =
+    baseboardSurfaceFromBorders > 0
+      ? baseboardSurfaceFromBorders
+      : perimeter * baseboardHeightSetting;
+  const edgeSurface =
+    edgeSurfaceFromBorders > 0 ? edgeSurfaceFromBorders : perimeter * edgeWidthSetting;
+
+  const wallMetrics = wallSurfaceFromBorders > 0
+    ? [
+        { label: 'Longitud activa', value: wallLengthFromBorders, unit: 'm' },
+        { label: 'Altura promedio', value: wallHeight, unit: 'm' },
+      ]
+    : [
+        { label: 'Altura', value: wallHeight, unit: 'm' },
+        { label: 'Perímetro', value: perimeter, unit: 'm' },
+      ];
+
+  const baseboardMetrics = baseboardSurfaceFromBorders > 0
+    ? [
+        { label: 'Longitud activa', value: baseboardLengthFromBorders, unit: 'm' },
+        { label: 'Altura promedio', value: baseboardHeight, unit: 'm' },
+      ]
+    : [
+        { label: 'Altura', value: baseboardHeight, unit: 'm' },
+        { label: 'Perímetro', value: perimeter, unit: 'm' },
+      ];
+
+  const edgeMetrics = edgeSurfaceFromBorders > 0
+    ? [
+        { label: 'Longitud activa', value: edgeLengthFromBorders, unit: 'm' },
+        { label: 'Ancho promedio', value: edgeWidth, unit: 'm' },
+      ]
+    : [
+        { label: 'Ancho', value: edgeWidth, unit: 'm' },
+        { label: 'Perímetro', value: perimeter, unit: 'm' },
+      ];
 
   const materialCatalog = useMemo(() => MATERIAL_CATALOG, []);
   const materialOptions = useMemo(() => flattenMaterials(materialCatalog), [materialCatalog]);
@@ -960,6 +1075,9 @@ export default function ResultsPanel({
         edgeSurface={edgeSurface}
         edgeCostPerM2={edgeCostPerM2}
         edgeWidth={edgeWidth}
+        wallMetrics={wallMetrics}
+        baseboardMetrics={baseboardMetrics}
+        edgeMetrics={edgeMetrics}
         floorCost={floorCost}
         wallCost={wallCost}
         baseboardCost={baseboardCost}

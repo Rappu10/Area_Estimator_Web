@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import FigureSelector from './FigureSelector';
 import ResultsPanel from './ResultsPanel';
