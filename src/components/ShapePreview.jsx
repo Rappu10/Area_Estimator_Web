@@ -2,6 +2,7 @@
 
 import React, { useEffect, useId, useMemo, useRef } from 'react';
 import { calculateMetrics } from '../utils/figureMetrics';
+import { BORDER_TYPE_STYLES } from '../data/surfaceStyles';
 
 const VIEWBOX = 240;
 
@@ -112,33 +113,41 @@ function getBorderElements(figure, data = {}) {
       const x = (VIEWBOX - displayWidth) / 2;
       const y = (VIEWBOX - displayHeight) / 2;
 
-      enabledBorders.slice(0, 4).forEach((border, idx) => {
-        const borderWidth = clampPositive(border.width, 0) * scale;
+      enabledBorders.forEach((border) => {
+        const edgeIndex = Number.isFinite(border?.edgeNumber) ? border.edgeNumber : 0;
+        if (edgeIndex < 1 || edgeIndex > 4) {
+          return;
+        }
 
+        const borderWidth = clampPositive(border.width, 0) * scale;
         if (borderWidth <= 0) {
           return;
         }
 
+        const style = BORDER_TYPE_STYLES[border.type] ?? BORDER_TYPE_STYLES.orilla;
+        const color = style?.solid ?? '#38bdf8';
         const baseRectProps = {
-          key: `border-${idx}`,
-          fill: '#ffffff',
-          stroke: '#0f172a',
-          strokeWidth: 2,
+          key: border.id ?? `border-${edgeIndex}`,
+          fill: color,
+          fillOpacity: 0.45,
+          stroke: color,
+          strokeOpacity: 0.85,
+          strokeWidth: 1.2,
         };
 
-        switch (idx) {
-          case 0:
+        switch (edgeIndex) {
+          case 1:
             elements.push(
               <rect
                 {...baseRectProps}
                 x={x}
-                y={y - borderWidth}
+                y={Math.max(y - borderWidth, 0)}
                 width={displayWidth}
                 height={borderWidth}
               />
             );
             break;
-          case 1:
+          case 2:
             elements.push(
               <rect
                 {...baseRectProps}
@@ -149,7 +158,7 @@ function getBorderElements(figure, data = {}) {
               />
             );
             break;
-          case 2:
+          case 3:
             elements.push(
               <rect
                 {...baseRectProps}
@@ -160,11 +169,11 @@ function getBorderElements(figure, data = {}) {
               />
             );
             break;
-          case 3:
+          case 4:
             elements.push(
               <rect
                 {...baseRectProps}
-                x={x - borderWidth}
+                x={Math.max(x - borderWidth, 0)}
                 y={y}
                 width={borderWidth}
                 height={displayHeight}
@@ -186,6 +195,8 @@ function getBorderElements(figure, data = {}) {
       if (border) {
         const borderWidth = clampPositive(border.width, 0) * scale;
         if (borderWidth > 0) {
+          const style = BORDER_TYPE_STYLES[border.type] ?? BORDER_TYPE_STYLES.orilla;
+          const color = style?.solid ?? '#38bdf8';
           elements.push(
             <circle
               key="border-circle"
@@ -193,7 +204,8 @@ function getBorderElements(figure, data = {}) {
               cy={VIEWBOX / 2}
               r={displayRadius + borderWidth / 2}
               fill="none"
-              stroke="#0f172a"
+              stroke={color}
+              strokeOpacity={0.9}
               strokeWidth={borderWidth}
             />
           );

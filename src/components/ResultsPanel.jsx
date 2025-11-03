@@ -8,6 +8,7 @@ import ShapePreview, {
 } from './ShapePreview';
 import { calculateMetrics } from '../utils/figureMetrics';
 import { DEFAULT_MATERIAL_ID, MATERIAL_CATALOG } from '../data/materialCatalog';
+import { SURFACE_STYLES } from '../data/surfaceStyles';
 
 const VIATIC_OPTIONS = [
   {
@@ -58,6 +59,26 @@ const flattenMaterials = (catalog) =>
       category,
     }))
   );
+
+const hexToRgba = (hex, alpha = 1) => {
+  if (typeof hex !== 'string') {
+    return `rgba(255,255,255,${alpha})`;
+  }
+  const normalized = hex.replace('#', '');
+  const bigint = Number.parseInt(normalized, 16);
+  if (Number.isNaN(bigint)) {
+    return `rgba(255,255,255,${alpha})`;
+  }
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+const parseNonNegativeFloat = (value) => {
+  const numeric = Number.parseFloat(value);
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : 0;
+};
 
 function PrintableReport({
   figureLabel,
@@ -337,9 +358,12 @@ export default function ResultsPanel({
   const [perimeter, setPerimeter] = useState(0);
   const [unit, setUnit] = useState('m2');
   const [customPricePerM2, setCustomPricePerM2] = useState(100);
-  const [wallCostPerM2, setWallCostPerM2] = useState(0);
-  const [baseboardCostPerM2, setBaseboardCostPerM2] = useState(0);
-  const [edgeCostPerM2, setEdgeCostPerM2] = useState(0);
+  const [wallCostPerM2, setWallCostPerM2] = useState(100);
+  const [wallCostPerM2Touched, setWallCostPerM2Touched] = useState(false);
+  const [baseboardCostPerM2, setBaseboardCostPerM2] = useState(100);
+  const [baseboardCostPerM2Touched, setBaseboardCostPerM2Touched] = useState(false);
+  const [edgeCostPerM2, setEdgeCostPerM2] = useState(100);
+  const [edgeCostPerM2Touched, setEdgeCostPerM2Touched] = useState(false);
   const [selectedMaterialId, setSelectedMaterialId] = useState(DEFAULT_MATERIAL_ID);
   const [specialCost, setSpecialCost] = useState(0);
   const [selectedViatic, setSelectedViatic] = useState('none');
@@ -357,6 +381,12 @@ export default function ResultsPanel({
     setPerimeter(computedPerimeter);
     setLShapeError(error);
   }, [data, figure]);
+
+  useEffect(() => {
+    setWallCostPerM2Touched(false);
+    setBaseboardCostPerM2Touched(false);
+    setEdgeCostPerM2Touched(false);
+  }, [figure, workspaceId]);
 
   const measurements = useMemo(() => getFigureMeasurements(figure, data), [figure, data]);
   const figureLabel = useMemo(() => {
@@ -649,6 +679,28 @@ export default function ResultsPanel({
     ? `${selectedMaterial.name} (${selectedMaterial.category})`
     : 'Precio personalizado';
 
+  useEffect(() => {
+    const unitCost = Number.isFinite(materialUnitPrice) ? materialUnitPrice : 0;
+
+    if (!wallCostPerM2Touched && wallCostPerM2 !== unitCost) {
+      setWallCostPerM2(unitCost);
+    }
+    if (!baseboardCostPerM2Touched && baseboardCostPerM2 !== unitCost) {
+      setBaseboardCostPerM2(unitCost);
+    }
+    if (!edgeCostPerM2Touched && edgeCostPerM2 !== unitCost) {
+      setEdgeCostPerM2(unitCost);
+    }
+  }, [
+    materialUnitPrice,
+    wallCostPerM2Touched,
+    baseboardCostPerM2Touched,
+    edgeCostPerM2Touched,
+    wallCostPerM2,
+    baseboardCostPerM2,
+    edgeCostPerM2,
+  ]);
+
   const viaticSelection = useMemo(() => {
     if (!selectedViatic || selectedViatic === 'none') {
       return null;
@@ -678,31 +730,111 @@ export default function ResultsPanel({
       displayValue: `${formatValue(floorAreaConverted)} ${unit}${
         selectedMaterial ? ` · ${materialDisplayName}` : ''
       }`,
-      color: 'linear-gradient(90deg, rgba(16,185,129,0.9), rgba(59,130,246,0.6))',
+      color: SURFACE_STYLES.floor.gradient,
     },
     wallSurface > 0 && {
       key: 'walls',
       label: 'Zoclos',
       areaValue: wallSurface,
       displayValue: `${formatValue(wallSurface)} m²`,
-      color: 'linear-gradient(90deg, rgba(14,165,233,0.9), rgba(56,189,248,0.65))',
+      color: SURFACE_STYLES.zoclo.gradient,
     },
     baseboardSurface > 0 && {
       key: 'baseboards',
       label: 'Faldones',
       areaValue: baseboardSurface,
       displayValue: `${formatValue(baseboardSurface)} m²`,
-      color: 'linear-gradient(90deg, rgba(249,115,22,0.9), rgba(253,186,116,0.8))',
+      color: SURFACE_STYLES.faldon.gradient,
     },
     edgeSurface > 0 && {
       key: 'edges',
       label: 'Orillas',
       areaValue: edgeSurface,
       displayValue: `${formatValue(edgeSurface)} m²`,
-      color: 'linear-gradient(90deg, rgba(168,85,247,0.9), rgba(217,70,239,0.7))',
+      color: SURFACE_STYLES.orilla.gradient,
     },
   ].filter(Boolean);
   const maxVisualArea = visualItems.length > 0 ? Math.max(...visualItems.map(({ areaValue }) => areaValue)) : 0;
+  const perimeterCostConfigs = [
+    {
+      key: 'zoclo',
+      label: 'Zoclos',
+      surface: wallSurface,
+      metrics: wallMetrics,
+      unitCost: wallCostPerM2,
+      subtotal: wallCost,
+      style: SURFACE_STYLES.zoclo,
+      onChange: (value) => {
+        setWallCostPerM2Touched(true);
+        setWallCostPerM2(value);
+      },
+    },
+    {
+      key: 'faldon',
+      label: 'Faldones',
+      surface: baseboardSurface,
+      metrics: baseboardMetrics,
+      unitCost: baseboardCostPerM2,
+      subtotal: baseboardCost,
+      style: SURFACE_STYLES.faldon,
+      onChange: (value) => {
+        setBaseboardCostPerM2Touched(true);
+        setBaseboardCostPerM2(value);
+      },
+    },
+    {
+      key: 'orilla',
+      label: 'Orillas',
+      surface: edgeSurface,
+      metrics: edgeMetrics,
+      unitCost: edgeCostPerM2,
+      subtotal: edgeCost,
+      style: SURFACE_STYLES.orilla,
+      onChange: (value) => {
+        setEdgeCostPerM2Touched(true);
+        setEdgeCostPerM2(value);
+      },
+    },
+  ].filter(({ surface }) => Number.isFinite(surface) && surface > 0);
+  const visualPreviewContent = (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-emerald-100">Vista previa de superficies</p>
+          <p className="mt-1 text-xs text-emerald-200/80">
+            Compara visualmente la participación relativa de cada elemento.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={closeVisualPreview}
+          className="ml-auto rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-100 transition hover:bg-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+          aria-label="Cerrar vista previa de superficies"
+        >
+          ×
+        </button>
+      </div>
+      <div className="mt-4 space-y-4">
+        {visualItems.map(({ key, label, displayValue, areaValue, color }) => {
+          const percent = maxVisualArea > 0 ? Math.max((areaValue / maxVisualArea) * 100, 6) : 0;
+          return (
+            <div key={key} className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-emerald-100/90">
+                <span className="font-medium">{label}</span>
+                <span className="text-emerald-200/80">{displayValue}</span>
+              </div>
+              <div className="h-2.5 w-full rounded-full bg-emerald-500/10">
+                <div
+                  className="h-full rounded-full shadow-[0_0_12px_rgba(16,185,129,0.45)] transition-all duration-500 ease-out"
+                  style={{ width: `${percent}%`, background: color }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
 
   return (
     <>
@@ -758,6 +890,25 @@ export default function ResultsPanel({
                 </div>
               </div>
 
+              {visualItems.length > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleVisualPreview}
+                  aria-pressed={showVisualPreview}
+                  className="print:hidden inline-flex items-center gap-2 self-start rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200 transition hover:bg-emerald-500/15 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+                >
+                  <span className="text-[11px]">Vista previa superficies</span>
+                  <span
+                    className={`text-base leading-none transition-transform ${
+                      showVisualPreview ? 'rotate-45' : ''
+                    }`}
+                    aria-hidden="true"
+                  >
+                    +
+                  </span>
+                </button>
+              )}
+
               <div className="rounded-2xl border border-gray-800 bg-gray-950/60 p-5 shadow-inner transition hover:border-emerald-400/40 hover:shadow-[0_15px_45px_rgba(16,185,129,0.25)]">
                 <button
                   type="button"
@@ -782,7 +933,7 @@ export default function ResultsPanel({
                     onClick={closeCostDrawer}
                     aria-hidden="true"
                   />
-                  <div className="relative z-10 w-full max-w-3xl overflow-hidden rounded-3xl border border-emerald-500/30 bg-gray-950/95 shadow-[0_35px_120px_rgba(16,185,129,0.35)]">
+                  <div className="relative z-10 w-full max-w-3xl overflow-hidden rounded-3xl border border-emerald-500/30 bg-gray-950/95 shadow-[0_35px_120px_rgba(16,185,129,0.35)] mx-auto">
                     <button
                       type="button"
                       onClick={closeCostDrawer}
@@ -791,45 +942,29 @@ export default function ResultsPanel({
                     >
                       ×
                     </button>
-                    <div className="flex items-start justify-between gap-4 border-b border-emerald-500/20 px-6 py-4">
+                    <div className="flex flex-col gap-3 border-b border-emerald-500/20 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                       <div>
                         <h3 className="text-lg font-semibold text-white">Costos estimados</h3>
                         <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/70">
                           {instanceLabel ?? 'Figura actual'}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={closeCostDrawer}
-                        className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
-                        aria-label="Cerrar costos"
-                      >
-                        <span className="text-base leading-none">×</span>
-                        <span>Cerrar</span>
-                      </button>
+                      <div className="text-sm text-emerald-200/70">
+                        Total actual{' '}
+                        <span className="font-semibold text-emerald-300">
+                          {formatCurrencyValue(total)}
+                        </span>
+                      </div>
                     </div>
 
                     <div
                       ref={modalScrollRef}
-                      className="max-h-[70vh] overflow-y-auto px-6 py-5 space-y-5"
+                      className="max-h-[75vh] overflow-y-auto px-5 py-5 space-y-5 sm:px-6"
                     >
-                      {visualItems.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={toggleVisualPreview}
-                          aria-pressed={showVisualPreview}
-                          className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200 transition hover:bg-emerald-500/15 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
-                        >
-                          <span className="text-[11px]">Vista previa superficies</span>
-                          <span
-                            className={`text-base leading-none transition-transform ${
-                              showVisualPreview ? 'rotate-45' : ''
-                            }`}
-                            aria-hidden="true"
-                          >
-                            +
-                          </span>
-                        </button>
+                      {showCostDrawer && showVisualPreview && visualItems.length > 0 && (
+                        <div className="rounded-xl border border-emerald-500/25 bg-gray-900/60 px-4 py-4">
+                          {visualPreviewContent}
+                        </div>
                       )}
 
                       <div className="rounded-xl border border-gray-800/70 bg-gray-900/60 p-5">
@@ -847,7 +982,7 @@ export default function ResultsPanel({
                             </p>
                           </div>
                           <div className="flex w-full flex-col gap-3 text-xs uppercase tracking-wide text-gray-400 sm:max-w-sm">
-                            <label className="flex flex-col text-right">
+                            <label className="flex flex-col text-left sm:text-right">
                               Material
                               <select
                                 value={selectedMaterialId}
@@ -873,17 +1008,17 @@ export default function ResultsPanel({
                               </select>
                             </label>
                             {selectedMaterialId === DEFAULT_MATERIAL_ID ? (
-                              <label className="flex flex-col text-right">
-                                Precio por m²
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="any"
-                                  value={customPricePerM2}
-                                  onChange={(e) => setCustomPricePerM2(parseFloat(e.target.value) || 0)}
-                                  className="print-input mt-1 w-full rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-1.5 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
-                                />
-                              </label>
+                            <label className="flex flex-col text-left sm:text-right">
+                              Precio por m²
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={customPricePerM2}
+                                onChange={(e) => setCustomPricePerM2(parseNonNegativeFloat(e.target.value))}
+                                className="print-input mt-1 w-full rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-1.5 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
+                              />
+                            </label>
                             ) : (
                               <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-right text-xs text-emerald-200/80">
                                 Precio por m²
@@ -893,14 +1028,84 @@ export default function ResultsPanel({
                               </div>
                             )}
                           </div>
-                        </div>
-                        <p className="mt-4 text-sm text-gray-300">
-                          Subtotal:{' '}
-                          <span className="font-semibold text-emerald-300">
-                            {formatCurrencyValue(floorCost)}
-                          </span>
-                        </p>
                       </div>
+                      <p className="mt-4 text-sm text-gray-300">
+                        Subtotal:{' '}
+                        <span className="font-semibold text-emerald-300">
+                          {formatCurrencyValue(floorCost)}
+                        </span>
+                      </p>
+                    </div>
+
+                      {perimeterCostConfigs.map(
+                        ({ key, label, surface, metrics, unitCost, subtotal, style, onChange }) => {
+                          const metricItems = Array.isArray(metrics)
+                            ? metrics.filter(
+                                ({ value }) => Number.isFinite(value) && Math.abs(value) > 0
+                              )
+                            : [];
+                          return (
+                            <div
+                              key={key}
+                              className="rounded-xl border bg-gray-900/60 p-5 shadow-inner"
+                              style={{
+                                borderColor: hexToRgba(style.solid, 0.45),
+                                boxShadow: `0 12px 35px ${hexToRgba(style.solid, 0.18)}`,
+                              }}
+                            >
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <p
+                                    className="text-sm font-semibold"
+                                    style={{ color: style.solid }}
+                                  >
+                                    {label}
+                                  </p>
+                                  <p className="text-xs text-gray-400">
+                                    Área activa: {formatValue(surface)} m²
+                                  </p>
+                                  {metricItems.length > 0 && (
+                                    <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-300">
+                                      {metricItems.map(({ label: metricLabel, value, unit: metricUnit }) => (
+                                        <div key={metricLabel}>
+                                          <dt className="text-[10px] uppercase tracking-wide text-gray-500">
+                                            {metricLabel}
+                                          </dt>
+                                          <dd className="mt-1 font-semibold text-emerald-200">
+                                            {formatValue(value)}
+                                            {metricUnit ? (
+                                              <span className="ml-1 text-[10px] text-gray-500">
+                                                {metricUnit}
+                                              </span>
+                                            ) : null}
+                                          </dd>
+                                        </div>
+                                      ))}
+                                    </dl>
+                                  )}
+                                </div>
+                                <label className="text-xs uppercase tracking-wide text-gray-400">
+                                  Precio por m²
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="any"
+                                    value={unitCost}
+                                    onChange={(event) => onChange(parseNonNegativeFloat(event.target.value))}
+                                    className="print-input mt-1 w-full rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-1.5 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition sm:w-32"
+                                  />
+                                </label>
+                              </div>
+                              <p className="mt-4 text-sm text-gray-300">
+                                Subtotal:{' '}
+                                <span className="font-semibold text-emerald-300">
+                                  {formatCurrencyValue(subtotal)}
+                                </span>
+                              </p>
+                            </div>
+                          );
+                        }
+                      )}
 
                       <div className="rounded-xl border border-gray-800/70 bg-gray-900/60 p-5">
                         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -917,7 +1122,7 @@ export default function ResultsPanel({
                               min="0"
                               step="any"
                               value={specialCost}
-                              onChange={(e) => setSpecialCost(parseFloat(e.target.value) || 0)}
+                              onChange={(e) => setSpecialCost(parseNonNegativeFloat(e.target.value))}
                               className="print-input mt-1 w-full rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-1.5 text-sm text-gray-100 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition sm:w-32"
                             />
                           </label>
@@ -978,29 +1183,20 @@ export default function ResultsPanel({
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-3 border-t border-emerald-500/20 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3 border-t border-emerald-500/20 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                       <div className="flex flex-col">
                         <span className="text-sm text-gray-400">Total estimado</span>
                         <span className="text-xl font-semibold text-emerald-400">
                           {formatCurrencyValue(total)}
                         </span>
                       </div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={handlePrint}
-                          className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
-                        >
-                          <span>Exportar PDF</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={closeCostDrawer}
-                          className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-transparent px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/15 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
-                        >
-                          <span>Cerrar</span>
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={handlePrint}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20 hover:text-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 sm:w-auto"
+                      >
+                        <span>Exportar PDF</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1014,44 +1210,10 @@ export default function ResultsPanel({
             </p>
           )}
 
-          {showVisualPreview && visualItems.length > 0 && (
-            <div className="print:hidden absolute bottom-6 right-6 z-40 w-[min(320px,calc(100vw-4rem))]">
+          {showVisualPreview && visualItems.length > 0 && !showCostDrawer && (
+            <div className="print:hidden fixed inset-x-4 bottom-6 z-[80] w-auto max-w-sm sm:inset-x-auto sm:right-6">
               <div className="overflow-hidden rounded-2xl border border-emerald-500/30 bg-gray-950/95 px-5 pb-5 pt-4 shadow-[0_30px_90px_rgba(16,185,129,0.35)] backdrop-blur-md">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-100">Vista previa de superficies</p>
-                    <p className="mt-1 text-xs text-emerald-200/80">
-                      Compara visualmente la participación relativa de cada elemento.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={closeVisualPreview}
-                    className="ml-auto rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-100 transition hover:bg-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
-                    aria-label="Cerrar vista previa de superficies"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="mt-4 space-y-4">
-                  {visualItems.map(({ key, label, displayValue, areaValue, color }) => {
-                    const percent = maxVisualArea > 0 ? Math.max((areaValue / maxVisualArea) * 100, 6) : 0;
-                    return (
-                      <div key={key} className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-emerald-100/90">
-                          <span className="font-medium">{label}</span>
-                          <span className="text-emerald-200/80">{displayValue}</span>
-                        </div>
-                        <div className="h-2.5 w-full rounded-full bg-emerald-500/10">
-                          <div
-                            className="h-full rounded-full shadow-[0_0_12px_rgba(16,185,129,0.45)] transition-all duration-500 ease-out"
-                            style={{ width: `${percent}%`, background: color }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                {visualPreviewContent}
               </div>
             </div>
           )}
