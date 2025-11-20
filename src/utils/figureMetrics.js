@@ -48,23 +48,22 @@ export function calculateMetrics(figure, data = {}) {
 
       const validOuter = safeOuterWidth > 0 && safeOuterHeight > 0;
       const validCut =
-        safeCutWidth >= 0 &&
-        safeCutHeight >= 0 &&
+        safeCutWidth > 0 &&
+        safeCutHeight > 0 &&
         safeCutWidth < safeOuterWidth &&
         safeCutHeight < safeOuterHeight;
+      const hasNoInput =
+        safeOuterWidth === 0 &&
+        safeOuterHeight === 0 &&
+        safeCutWidth === 0 &&
+        safeCutHeight === 0;
 
       if (validOuter && validCut) {
-        area = safeOuterWidth * safeOuterHeight - safeCutWidth * safeCutHeight;
-        const segments = [
-          safeOuterWidth,
-          Math.max(safeOuterHeight - safeCutHeight, 0),
-          safeCutWidth,
-          safeCutHeight,
-          Math.max(safeOuterWidth - safeCutWidth, 0),
-          safeOuterHeight,
-        ];
-        perimeter = segments.reduce((total, segment) => total + segment, 0);
-      } else if (safeOuterWidth === 0 && safeOuterHeight === 0 && safeCutWidth === 0 && safeCutHeight === 0) {
+        const outerArea = safeOuterWidth * safeOuterHeight;
+        const cutArea = safeCutWidth * safeCutHeight;
+        area = outerArea - cutArea;
+        perimeter = 2 * (safeOuterWidth + safeOuterHeight);
+      } else if (hasNoInput) {
         error = '';
         area = 0;
         perimeter = 0;

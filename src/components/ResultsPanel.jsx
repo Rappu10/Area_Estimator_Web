@@ -87,6 +87,7 @@ function PrintableReport({
   unit,
   perimeter,
   floorAreaConverted,
+  totalSurfaceArea,
   materialUnitPrice,
   materialName,
   wallSurface,
@@ -162,8 +163,8 @@ function PrintableReport({
     {
       key: 'walls',
       label: 'Paredes',
-      surfaceValue: wallSurface,
-      surfaceUnit: 'm²',
+      surfaceValue: null,
+      surfaceUnit: '',
       unitCost: wallCostPerM2,
       subtotal: wallCost,
       metrics: wallMetrics,
@@ -171,8 +172,8 @@ function PrintableReport({
     {
       key: 'baseboards',
       label: 'Faldones',
-      surfaceValue: baseboardSurface,
-      surfaceUnit: 'm²',
+      surfaceValue: null,
+      surfaceUnit: '',
       unitCost: baseboardCostPerM2,
       subtotal: baseboardCost,
       metrics: baseboardMetrics,
@@ -180,8 +181,8 @@ function PrintableReport({
     {
       key: 'edges',
       label: 'Orillas',
-      surfaceValue: edgeSurface,
-      surfaceUnit: 'm²',
+      surfaceValue: null,
+      surfaceUnit: '',
       unitCost: edgeCostPerM2,
       subtotal: edgeCost,
       metrics: edgeMetrics,
@@ -242,6 +243,10 @@ function PrintableReport({
             <p className="print-report__value">
               {formatValue(floorAreaConverted)} {unit}
             </p>
+          </div>
+          <div className="print-report__highlight">
+            <p className="print-report__caption">Área total con acabados</p>
+            <p className="print-report__value">{formatValue(totalSurfaceArea)} m²</p>
           </div>
           <div className="print-report__highlight">
             <p className="print-report__caption">Perímetro</p>
@@ -719,6 +724,7 @@ export default function ResultsPanel({
   const wallCost = wallSurface * wallCostPerM2;
   const baseboardCost = baseboardSurface * baseboardCostPerM2;
   const edgeCost = edgeSurface * edgeCostPerM2;
+  const totalSurfaceArea = area + wallSurface + baseboardSurface + edgeSurface;
   const viaticCost = viaticSelection?.amount ?? 0;
   const viaticLabel = viaticSelection ? `${viaticSelection.label} (${viaticSelection.group})` : 'Sin viáticos';
   const total = floorCost + wallCost + baseboardCost + edgeCost + specialCost + viaticCost;
@@ -874,20 +880,32 @@ export default function ResultsPanel({
 
             <div className="flex flex-col gap-6">
               <div className="grid gap-4 sm:grid-cols-1">
-                <div className="rounded-3xl border border-gray-800 bg-gradient-to-br from-gray-900/80 to-gray-950/40 px-6 py-7 shadow-inner transition hover:border-emerald-400/40 hover:shadow-[0_18px_55px_rgba(16,185,129,0.28)]">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Área</p>
-                  <p className="mt-4 text-[28px] font-semibold text-emerald-400 leading-tight">
-                    {convertArea(area).toFixed(2)}
-                    <span className="ml-2 text-sm text-gray-500">{unit}</span>
-                  </p>
-                </div>
-                <div className="rounded-3xl border border-gray-800 bg-gradient-to-br from-gray-900/80 to-gray-950/40 px-6 py-7 shadow-inner transition hover:border-emerald-400/40 hover:shadow-[0_18px_55px_rgba(16,185,129,0.28)]">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Perímetro</p>
-                  <p className="mt-4 text-[28px] font-semibold text-emerald-300 leading-tight">
-                    {perimeter.toFixed(2)}
-                    <span className="ml-2 text-sm text-gray-500">m</span>
-                  </p>
-                </div>
+              <div className="rounded-3xl border border-gray-800 bg-gradient-to-br from-gray-900/80 to-gray-950/40 px-6 py-7 shadow-inner transition hover:border-emerald-400/40 hover:shadow-[0_18px_55px_rgba(16,185,129,0.28)]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Área</p>
+                <p className="mt-4 text-[28px] font-semibold text-emerald-400 leading-tight">
+                  {convertArea(area).toFixed(2)}
+                  <span className="ml-2 text-sm text-gray-500">{unit}</span>
+                </p>
+              </div>
+              <div className="rounded-3xl border border-gray-800 bg-gradient-to-br from-gray-900/80 to-gray-950/40 px-6 py-7 shadow-inner transition hover:border-emerald-400/40 hover:shadow-[0_18px_55px_rgba(16,185,129,0.28)]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Perímetro</p>
+                <p className="mt-4 text-[28px] font-semibold text-emerald-300 leading-tight">
+                  {perimeter.toFixed(2)}
+                  <span className="ml-2 text-sm text-gray-500">m</span>
+                </p>
+              </div>
+              <div className="rounded-3xl border border-gray-800 bg-gradient-to-br from-gray-900/80 to-gray-950/40 px-6 py-7 shadow-inner transition hover:border-emerald-400/40 hover:shadow-[0_18px_55px_rgba(16,185,129,0.28)]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Área m² totales
+                  <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-emerald-400/70">
+                    incluye orillas
+                  </span>
+                </p>
+                <p className="mt-4 text-[28px] font-semibold text-emerald-200 leading-tight">
+                  {totalSurfaceArea.toFixed(2)}
+                  <span className="ml-2 text-sm text-gray-500">m²</span>
+                </p>
+              </div>
               </div>
 
               {visualItems.length > 0 && (
@@ -1219,13 +1237,14 @@ export default function ResultsPanel({
           )}
         </div>
       </div>
-      <PrintableReport
-        figureLabel={figureLabel}
-        measurements={measurements}
-        baseArea={area}
-        unit={unit}
-        perimeter={perimeter}
-        floorAreaConverted={floorAreaConverted}
+        <PrintableReport
+          figureLabel={figureLabel}
+          measurements={measurements}
+          baseArea={area}
+          unit={unit}
+          perimeter={perimeter}
+          floorAreaConverted={floorAreaConverted}
+          totalSurfaceArea={totalSurfaceArea}
         materialUnitPrice={materialUnitPrice}
         materialName={materialName}
         wallSurface={wallSurface}
