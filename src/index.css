@@ -184,17 +184,6 @@ body::before {
   color: #0f172a;
 }
 
-.print-report__total {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  align-items: baseline;
-  margin-top: 1rem;
-  font-size: 12pt;
-  font-weight: 600;
-  color: #0f172a;
-}
-
 .print-report__note {
   font-size: 10pt;
   color: #0f766e;
@@ -203,11 +192,228 @@ body::before {
   margin: 0.75rem 0 0;
 }
 
+.print-report__total-panel {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+  font-size: 1.1rem;
+}
+
 .print-report__footnote {
   margin-top: 2.5rem;
   font-size: 9.5pt;
   color: #475569;
   line-height: 1.4;
+}
+
+@media print {
+  .print-report {
+    page-break-after: always;
+  }
+
+  .print-report:last-child {
+    page-break-after: auto;
+  }
+}
+
+.print-report__footnote {
+  margin-top: 2.5rem;
+  font-size: 9.5pt;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.print-report {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.12);
+}
+
+.print-report__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.print-report__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
+
+.print-report__brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #0f766e;
+  display: inline-block;
+  background: linear-gradient(135deg, #34d399, #14b8a6);
+  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.35);
+}
+
+.print-report__brand-name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.print-report__brand-tagline {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+.print-report__title {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.print-report__subtitle {
+  margin: 0.25rem 0 0;
+  color: #475569;
+  font-size: 0.85rem;
+}
+
+.print-report__timestamp {
+  text-align: right;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.print-report__section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.print-report__section-heading {
+  margin-bottom: 1rem;
+}
+
+.print-report__section-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.print-report__caption {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.print-report__caption--uppercase {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  margin-bottom: 0.35rem;
+}
+
+.print-report__caption--muted {
+  color: #94a3b8;
+}
+
+.print-report__summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.print-report__highlight-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 15px rgba(15, 23, 42, 0.06);
+}
+
+.print-report__value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.35rem 0 0;
+}
+
+.print-report__strong {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.print-report__measurements {
+  margin-top: 1.25rem;
+}
+
+.print-report__measurement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.print-report__measurement {
+  font-size: 0.85rem;
+  color: #1e293b;
+}
+
+.print-report__measurement-unit {
+  font-size: 0.75rem;
+  margin-left: 0.25rem;
+  color: #475569;
+}
+
+.print-report__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.83rem;
+  margin-top: 1rem;
+}
+
+.print-report__table th,
+.print-report__table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.75rem 0.35rem;
+}
+
+.print-report__table th {
+  text-align: left;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.print-report__metrics {
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
+  color: #475569;
+  font-size: 0.75rem;
+}
+
+.print-report__total-panel {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+  font-size: 1.1rem;
+}
+
+.print-report__note {
+  color: #b91c1c;
+  background: #fee2e2;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  border: 1px solid #fecaca;
+  font-size: 0.9rem;
 }
 
 @page {

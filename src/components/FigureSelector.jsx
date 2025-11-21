@@ -219,8 +219,10 @@ export default function FigureSelector({ figure, setFigure, setData }) {
   const fields = FIGURE_FIELDS[figure] ?? [];
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/60 p-6 shadow-2xl backdrop-blur-xl">
-      <div className="pointer-events-none absolute inset-x-0 -top-32 h-48 bg-gradient-to-b from-emerald-500/10 via-emerald-500/0 to-transparent" />
+    <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-slate-950/95 via-slate-900/80 to-black/60 p-6 shadow-[0_40px_120px_rgba(5,10,25,0.8)]">
+      <div className="pointer-events-none absolute inset-0 opacity-60">
+        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/20 via-transparent to-black/80 blur-3xl" />
+      </div>
 
       <div className="relative">
         <h2 className="text-lg font-semibold text-white">Datos de la figura</h2>
@@ -252,7 +254,10 @@ export default function FigureSelector({ figure, setFigure, setData }) {
 
         <div className="mt-6 space-y-4">
           {fields.map(({ name, label, unit }) => (
-            <div key={name} className="rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-3">
+            <div
+              key={name}
+              className="rounded-xl border border-emerald-500/10 bg-white/5 px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.4)]"
+            >
               <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500">
                 {label} <span className="text-gray-600">({unit})</span>
               </label>
@@ -269,13 +274,13 @@ export default function FigureSelector({ figure, setFigure, setData }) {
         </div>
 
         {borders.length > 0 && (
-          <div className="mt-6 rounded-xl border border-gray-800 bg-gray-950/40 p-4">
+          <div className="mt-6 rounded-xl border border-emerald-500/20 bg-white/5 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
             <div className="mb-4">
               <label className="text-sm font-semibold text-gray-300">
                 Orillas ({borders.length} arista{borders.length !== 1 ? 's' : ''})
               </label>
               <p className="text-xs text-gray-500 mt-1">
-                Activa las aristas que requieren acabado y asigna su tipo y ancho.
+                Configura los acabados para cada arista de la figura seleccionada.
               </p>
             </div>
 
