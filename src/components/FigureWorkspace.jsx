@@ -53,7 +53,7 @@ export default function FigureWorkspace({
           )}
         </div>
 
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,360px)_minmax(0,2fr)]">
+        <div className="grid gap-10 items-start lg:grid-cols-[minmax(0,360px)_minmax(0,2fr)]">
           <FigureSelector figure={figure} setFigure={setFigure} setData={setData} />
           <ResultsPanel
             figure={figure}

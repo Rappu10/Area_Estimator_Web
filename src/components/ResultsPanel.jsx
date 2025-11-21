@@ -855,7 +855,7 @@ export default function ResultsPanel({
 
   return (
     <>
-      <div className="print-area screen-only relative mt-6 w-full overflow-hidden rounded-[40px] bg-gradient-to-br from-slate-950/90 via-slate-900/70 to-black/80 px-6 pb-8 pt-8 shadow-[0_50px_140px_rgba(16,185,129,0.35)]">
+      <div className="print-area screen-only relative mt-6 w-full overflow-hidden rounded-[40px] bg-gradient-to-br from-slate-950/90 via-slate-900/70 to-black/80 px-6 pb-8 pt-8 shadow-[0_50px_140px_rgba(16,185,129,0.35)] self-start">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 rounded-[40px] bg-gradient-to-b from-emerald-500/20 via-transparent to-black/90 blur-[80px] opacity-80"
