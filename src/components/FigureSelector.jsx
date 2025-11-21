@@ -98,6 +98,7 @@ const getEdgeLabels = (figure, inputs = {}) => {
 export default function FigureSelector({ figure, setFigure, setData }) {
   const [inputs, setInputs] = useState({});
   const [borders, setBorders] = useState([]);
+  const [showBorderDetails, setShowBorderDetails] = useState(true);
 
   useEffect(() => {
     setInputs({});
@@ -275,80 +276,89 @@ export default function FigureSelector({ figure, setFigure, setData }) {
 
         {borders.length > 0 && (
           <div className="mt-6 rounded-xl border border-emerald-500/20 bg-white/5 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
-            <div className="mb-4">
-              <label className="text-sm font-semibold text-gray-300">
-                Orillas ({borders.length} arista{borders.length !== 1 ? 's' : ''})
-              </label>
-              <p className="text-xs text-gray-500 mt-1">
-                Configura los acabados para cada arista de la figura seleccionada.
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowBorderDetails((prev) => !prev)}
+              aria-expanded={showBorderDetails}
+              className="inline-flex items-center justify-between w-full rounded-2xl bg-gradient-to-r from-emerald-500/90 via-cyan-500/80 to-blue-500/80 px-4 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-white shadow-[0_15px_45px_rgba(15,23,42,0.45)] transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/80 hover:-translate-y-0.5 active:translate-y-0.5"
+            >
+              <span>Orillas · {borders.length} arista{borders.length !== 1 ? 's' : ''}</span>
+              <span aria-hidden="true" className="text-sm leading-none">
+                {showBorderDetails ? '↗' : '↘'}
+              </span>
+            </button>
+            {showBorderDetails && (
+              <div className="space-y-4 mt-4">
+                <p className="text-xs text-gray-500">
+                  Configura los acabados para cada arista de la figura seleccionada.
+                </p>
+                <div className="space-y-3">
+                  {borders.map((border) => (
+                    <div
+                      key={border.id}
+                      className={`rounded-lg border p-3 transition ${
+                        border.enabled
+                          ? 'border-emerald-500/40 bg-emerald-500/5'
+                          : 'border-gray-700 bg-gray-950/60 opacity-60'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={border.enabled}
+                          onChange={() => handleBorderToggle(border.id)}
+                          className="mt-1 h-4 w-4 rounded border-gray-700 bg-gray-950 text-emerald-500 focus:ring-2 focus:ring-emerald-500/40"
+                        />
 
-            <div className="space-y-3">
-              {borders.map((border) => (
-                <div
-                  key={border.id}
-                  className={`rounded-lg border p-3 transition ${
-                    border.enabled
-                      ? 'border-emerald-500/40 bg-emerald-500/5'
-                      : 'border-gray-700 bg-gray-950/60 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={border.enabled}
-                      onChange={() => handleBorderToggle(border.id)}
-                      className="mt-1 h-4 w-4 rounded border-gray-700 bg-gray-950 text-emerald-500 focus:ring-2 focus:ring-emerald-500/40"
-                    />
-
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-gray-300">{border.edgeLabel}</span>
-                        <span className="text-xs text-gray-500">
-                          {Number.isFinite(border.length) ? border.length.toFixed(2) : '0.00'} m
-                        </span>
-                      </div>
-
-                      {border.enabled && (
-                        <div className="mt-3 space-y-3">
-                          <div>
-                            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                              Tipo de acabado
-                            </label>
-                            <select
-                              value={border.type}
-                              onChange={(event) => handleBorderTypeChange(border.id, event.target.value)}
-                              className="w-full appearance-none rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-2 text-sm text-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
-                            >
-                              <option value="zoclo">Zoclo</option>
-                              <option value="faldon">Faldón</option>
-                              <option value="orilla">Orilla</option>
-                            </select>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-gray-300">{border.edgeLabel}</span>
+                            <span className="text-xs text-gray-500">
+                              {Number.isFinite(border.length) ? border.length.toFixed(2) : '0.00'} m
+                            </span>
                           </div>
 
-                          <div>
-                            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                              Ancho del acabado (m)
-                            </label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={
-                                Number.isFinite(border.width) && border.width !== null ? border.width : ''
-                              }
-                              onChange={(event) => handleBorderWidthChange(border.id, event.target.value)}
-                              className="w-full rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-2 text-sm text-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
-                              placeholder="0.00"
-                            />
-                          </div>
+                          {border.enabled && (
+                            <div className="mt-3 space-y-3">
+                              <div>
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                                  Tipo de acabado
+                                </label>
+                                <select
+                                  value={border.type}
+                                  onChange={(event) => handleBorderTypeChange(border.id, event.target.value)}
+                                  className="w-full appearance-none rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-2 text-sm text-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
+                                >
+                                  <option value="zoclo">Zoclo</option>
+                                  <option value="faldon">Faldón</option>
+                                  <option value="orilla">Orilla</option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                                  Ancho del acabado (m)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={
+                                    Number.isFinite(border.width) && border.width !== null ? border.width : ''
+                                  }
+                                  onChange={(event) => handleBorderWidthChange(border.id, event.target.value)}
+                                  className="w-full rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-2 text-sm text-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40 transition"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
         )}
 

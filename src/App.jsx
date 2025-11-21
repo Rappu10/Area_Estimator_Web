@@ -21,7 +21,7 @@ export default function App() {
 
   const handleAddWorkspace = () => {
     setWorkspaces((prev) => {
-      if (prev.length >= 2) {
+      if (prev.length >= 4) {
         return prev;
       }
       return [...prev, createWorkspace()];
@@ -69,7 +69,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-emerald-950 text-white">
-      <div className="max-w-5xl mx-auto px-6 py-12">
+      <div className="max-w-7xl mx-auto px-6 py-12">
         <header className="text-center mb-12">
           <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-sm uppercase tracking-widest text-emerald-300">
             Synapse Labs
@@ -107,7 +107,7 @@ export default function App() {
               <span>Cerrar costos</span>
             </button>
           )}
-          {workspaces.length < 2 && (
+          {workspaces.length < 4 && (
             <button
               type="button"
               onClick={handleAddWorkspace}

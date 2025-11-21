@@ -222,48 +222,35 @@ function PrintableReport({
     <div className="print-report print-only" role="document" aria-label="Reporte para impresión">
       <header className="print-report__header">
         <div>
-          <h1 className="print-report__title">Reporte de estimación de área</h1>
-          <p className="print-report__subtitle">Figura analizada: {figureLabel}</p>
-          <div className="print-report__brand">
-            <span className="print-report__brand-mark" aria-hidden="true" />
-            <div>
-              <p className="print-report__brand-name">Synapse Labs</p>
-              <p className="print-report__brand-tagline">Estimaciones con rigor y detalle</p>
-            </div>
-          </div>
+          <h1 className="print-report__title">Reporte de estimación</h1>
+          <p className="print-report__subtitle">{figureLabel}</p>
         </div>
         <div className="print-report__timestamp">
-          <p className="print-report__caption">Fecha de generación</p>
-          <p>{reportTimestamp || 'Se completará al momento de imprimir'}</p>
+          <p className="print-report__caption">Fecha</p>
+          <p>{reportTimestamp || 'Se genera al imprimir'}</p>
         </div>
       </header>
 
-      <section className="print-report__section">
-        <div className="print-report__section-heading">
-          <h2 className="print-report__section-title">Resumen geométrico</h2>
-          <p className="print-report__caption print-report__caption--muted">
-            Datos base para el cálculo de áreas, perímetros y costos.
-          </p>
-        </div>
-        <div className="print-report__summary-grid">
-          <article className="print-report__highlight-card">
-            <p className="print-report__caption">Área base (m²)</p>
+      <div className="print-report__figure-block">
+        <p className="print-report__caption print-report__caption--uppercase">Figura</p>
+        <p className="print-report__figure-label">{figureLabel}</p>
+      </div>
+
+      <section className="print-report__section print-report__section--minimal">
+        <h2 className="print-report__section-title">Resumen geométrico</h2>
+        <div className="print-report__summary-minimal">
+          <div>
+            <p className="print-report__caption">Área base</p>
             <p className="print-report__value">{formatValue(baseArea)} m²</p>
-          </article>
-          <article className="print-report__highlight-card">
-            <p className="print-report__caption">Área ({unit})</p>
-            <p className="print-report__value">
-              {formatValue(floorAreaConverted)} {unit}
-            </p>
-          </article>
-          <article className="print-report__highlight-card">
-            <p className="print-report__caption">Área total con acabados</p>
-            <p className="print-report__value">{formatValue(totalSurfaceArea)} m²</p>
-          </article>
-          <article className="print-report__highlight-card">
+          </div>
+          <div>
             <p className="print-report__caption">Perímetro</p>
             <p className="print-report__value">{formatValue(perimeter)} m</p>
-          </article>
+          </div>
+          <div>
+            <p className="print-report__caption">Área total</p>
+            <p className="print-report__value">{formatValue(totalSurfaceArea)} m²</p>
+          </div>
         </div>
 
         {materialName && (
@@ -292,7 +279,7 @@ function PrintableReport({
 
       <section className="print-report__section">
         <h2 className="print-report__section-title">Costos estimados</h2>
-        <table className="print-report__table">
+        <table className="print-report__table print-report__table--minimal">
           <thead>
             <tr>
               <th scope="col">Concepto</th>
